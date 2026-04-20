@@ -1,0 +1,3 @@
+../Core/Src/sdram.c:24:6:SDRAM_Init_Sequence	24	static
+../Core/Src/sdram.c:86:6:SDRAM_GPIOInit	72	static
+../Core/Src/sdram.c:202:6:SDRAM_Init	8	static
