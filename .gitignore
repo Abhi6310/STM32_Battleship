@@ -1,0 +1,38 @@
+# local-only
+/CLAUDE.md
+/dev_docs/
+/neuro_behavior_finetuning/
+
+# build artifacts
+Debug/
+Release/
+*.o
+*.elf
+*.list
+*.map
+*.hex
+*.bin
+*.su
+*.d
+*.cyclo
+
+# IDE
+.metadata/
+.settings/
+.launches/
+*.launch
+.idea/
+.vscode/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*~
+*.tmp
+*.bak
+*.swp
+*.swo
+
+# build logs
+/build_baseline.txt
+/dev_docs/build_baseline.txt
