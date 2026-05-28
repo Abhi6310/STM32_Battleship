@@ -21,6 +21,7 @@ Release/
 .settings/
 .launches/
 *.launch
+*.cfg
 .idea/
 .vscode/
 
