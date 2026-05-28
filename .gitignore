@@ -1,7 +1,5 @@
 # local-only
-/CLAUDE.md
 /dev_docs/
-/neuro_behavior_finetuning/
 
 # build artifacts
 Debug/
@@ -33,7 +31,3 @@ Thumbs.db
 *.bak
 *.swp
 *.swo
-
-# build logs
-/build_baseline.txt
-/dev_docs/build_baseline.txt

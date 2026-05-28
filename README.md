@@ -33,9 +33,3 @@ ApplicationCode.c   init, ISR, main loop
 GameDriver.c        state machine, game logic, AI, Flash
 DisplayDriver.c     rendering (the only file that includes LCD_Driver.h)
 ```
-
----
-
-## Build
-
-Build with `-Wall -Wextra` (zero warnings). Open `firmware/` in STM32CubeIDE and flash via Run → STM32 C/C++ Application.
