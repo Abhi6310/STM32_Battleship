@@ -2,6 +2,34 @@
 #include "LCD_Driver.h"
 #include <string.h>
 
+static uint32_t getCellDisplayColor(CellState cell, uint8_t isAttackView)
+{
+    switch (cell)
+    {
+        case CELL_EMPTY:return LCD_COLOR_GRAY;
+        case CELL_SHIP: return isAttackView ? LCD_COLOR_GRAY : LCD_COLOR_LIGHTBLUE;
+        case CELL_HIT: return LCD_COLOR_RED;
+        case CELL_MISS: return LCD_COLOR_DARKBLUE;
+        case CELL_SUNK: return LCD_COLOR_DARKRED;
+        default: return LCD_COLOR_GRAY;
+    }
+}
+
+void Display_RenderGrid(Grid *grid, uint16_t originX, uint16_t originY, uint8_t isAttackView)
+{
+    for (uint8_t row = 0; row < GRID_SIZE; row++)
+    {
+        for (uint8_t col = 0; col < GRID_SIZE; col++)
+        {
+            uint16_t x = originX + col * GRID_CELL_SIZE;
+            uint16_t y = originY + row * GRID_CELL_SIZE;
+            uint32_t color = getCellDisplayColor(grid->cells[row][col], isAttackView);
+            Display_FillRect(x, y, GRID_CELL_SIZE, GRID_CELL_SIZE, color);
+            Display_DrawRect(x, y, GRID_CELL_SIZE, GRID_CELL_SIZE, LCD_COLOR_BLACK);
+        }
+    }
+}
+
 void Display_FillRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint32_t color)
 {
 	for (uint16_t col = x; col < x + w; col++)

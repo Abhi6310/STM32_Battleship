@@ -16,6 +16,22 @@ typedef enum {
     STATE_STATS_SCREEN,
 } GameState;
 
+#define GRID_SIZE 7
+#define NUM_SHIPS 3
+#define DESTROYER_LENGTH 2
+#define SUBMARINE_LENGTH 3
+#define BATTLESHIP_LENGTH 4
+
+typedef enum { CELL_EMPTY, CELL_SHIP, CELL_HIT, CELL_MISS, CELL_SUNK } CellState;
+
+typedef struct {
+    CellState cells[GRID_SIZE][GRID_SIZE];
+} Grid;
+
+uint8_t Touch_IsInGrid(uint16_t px, uint16_t py);
+uint8_t Touch_ToGridRow(uint16_t py);
+uint8_t Touch_ToGridCol(uint16_t px);
+
 void GameDriver_Init(void);
 void GameDriver_HandleTouch(uint16_t x, uint16_t y);
 void GameDriver_HandleButtonTick(void);
