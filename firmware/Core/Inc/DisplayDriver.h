@@ -14,13 +14,11 @@
 #define GRID_CELL_SIZE 28
 #define GRID_PIXEL_WIDTH (GRID_SIZE * GRID_CELL_SIZE)
 
-#define BTN_W 80
-#define BTN_H 40
-#define BTN_1P_X 20
-#define BTN_1P_Y 140
-#define BTN_2P_X 140
-#define BTN_2P_Y 140
-#define BTN_STATS_X 80
+#define HOME_BTN_X 20
+#define HOME_BTN_W 200
+#define HOME_BTN_H 40
+#define BTN_SINGLE_Y 80
+#define BTN_MULTI_Y 140
 #define BTN_STATS_Y 200
 #define BTN_PLACE_X 70
 #define BTN_PLACE_Y 260
@@ -34,5 +32,7 @@ void Display_DrawString(uint16_t x, uint16_t y, const char *str, uint32_t color)
 void Display_DrawStringLarge(uint16_t x, uint16_t y, const char *str, uint32_t color);
 void Display_RenderGrid(Grid *grid, uint16_t originX, uint16_t originY, uint8_t isAttackView);
 void Display_RenderHomeScreen(void);
+void Display_RenderPlacementPlaceholder(uint8_t isMultiplayer);
+void Display_RenderStatsPlaceholder(void);
 
 #endif /* INC_DISPLAYDRIVER_H_ */

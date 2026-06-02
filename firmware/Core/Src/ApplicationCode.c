@@ -4,8 +4,17 @@
 #include "DisplayDriver.h"
 
 #define TOUCH_Y_INVERT_MAX 295
+#define TIMER_PSC_10MS 839
+#define TIMER_ARR_10MS 999
 
 static STMPE811_TouchData touchData;
+volatile uint8_t timerFlag = 0;
+
+void TIM6_DAC_IRQHandler(void)
+{
+	__HAL_TIM_CLEAR_IT(&htim6, TIM_IT_UPDATE);
+	timerFlag = 1;
+}
 
 void ApplicationInit(void)
 {
@@ -16,6 +25,7 @@ void ApplicationInit(void)
 	InitializeLCDTouch();
 	touchData.orientation = STMPE811_Orientation_Portrait_2;
 	GameDriver_Init();
+	Timer_Init(TIMER_PSC_10MS, TIMER_ARR_10MS);
 	Display_RenderHomeScreen();
 }
 
@@ -23,6 +33,13 @@ void ApplicationRun(void)
 {
 	while (1)
 	{
+		if (timerFlag)
+		{
+			timerFlag = 0;
+			GameDriver_HandleButtonTick();
+			GameDriver_HandleTimerTick();
+		}
+
 		if (returnTouchStateAndLocation(&touchData) == STMPE811_State_Pressed)
 		{
 			touchData.y = TOUCH_Y_INVERT_MAX - touchData.y;

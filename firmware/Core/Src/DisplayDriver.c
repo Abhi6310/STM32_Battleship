@@ -79,17 +79,33 @@ void Display_DrawStringLarge(uint16_t x, uint16_t y, const char *str, uint32_t c
 void Display_RenderHomeScreen(void)
 {
 	LCD_Clear(LCD_COLOR_BLACK);
-	Display_DrawStringLarge(40, 60, "BATTLESHIP", LCD_COLOR_CYAN);
+	Display_DrawStringLarge(40, 20, "BATTLESHIP", LCD_COLOR_CYAN);
 
-	Display_FillRect(BTN_1P_X, BTN_1P_Y, BTN_W, BTN_H, LCD_COLOR_BLUE);
-	Display_DrawRect(BTN_1P_X, BTN_1P_Y, BTN_W, BTN_H, LCD_COLOR_WHITE);
-	Display_DrawString(BTN_1P_X + 28, BTN_1P_Y + 14, "1P", LCD_COLOR_WHITE);
+	Display_FillRect(HOME_BTN_X, BTN_SINGLE_Y, HOME_BTN_W, HOME_BTN_H, LCD_COLOR_BLUE);
+	Display_DrawRect(HOME_BTN_X, BTN_SINGLE_Y, HOME_BTN_W, HOME_BTN_H, LCD_COLOR_WHITE);
+	Display_DrawString(HOME_BTN_X + 28, BTN_SINGLE_Y + 14, "Singleplayer", LCD_COLOR_WHITE);
 
-	Display_FillRect(BTN_2P_X, BTN_2P_Y, BTN_W, BTN_H, LCD_COLOR_DARKGREEN);
-	Display_DrawRect(BTN_2P_X, BTN_2P_Y, BTN_W, BTN_H, LCD_COLOR_WHITE);
-	Display_DrawString(BTN_2P_X + 28, BTN_2P_Y + 14, "2P", LCD_COLOR_WHITE);
+	Display_FillRect(HOME_BTN_X, BTN_MULTI_Y, HOME_BTN_W, HOME_BTN_H, LCD_COLOR_DARKGREEN);
+	Display_DrawRect(HOME_BTN_X, BTN_MULTI_Y, HOME_BTN_W, HOME_BTN_H, LCD_COLOR_WHITE);
+	Display_DrawString(HOME_BTN_X + 34, BTN_MULTI_Y + 14, "Multiplayer", LCD_COLOR_WHITE);
 
-	Display_FillRect(BTN_STATS_X, BTN_STATS_Y, BTN_W, BTN_H, LCD_COLOR_ORANGE);
-	Display_DrawRect(BTN_STATS_X, BTN_STATS_Y, BTN_W, BTN_H, LCD_COLOR_WHITE);
-	Display_DrawString(BTN_STATS_X + 10, BTN_STATS_Y + 14, "STATS", LCD_COLOR_WHITE);
+	Display_FillRect(HOME_BTN_X, BTN_STATS_Y, HOME_BTN_W, HOME_BTN_H, LCD_COLOR_ORANGE);
+	Display_DrawRect(HOME_BTN_X, BTN_STATS_Y, HOME_BTN_W, HOME_BTN_H, LCD_COLOR_WHITE);
+	Display_DrawString(HOME_BTN_X + 70, BTN_STATS_Y + 14, "Stats", LCD_COLOR_WHITE);
+}
+
+void Display_RenderPlacementPlaceholder(uint8_t isMultiplayer)
+{
+	LCD_Clear(LCD_COLOR_DARKBLUE);
+	Display_DrawStringLarge(48, 130, "PLACEMENT", LCD_COLOR_WHITE);
+	Display_DrawString(isMultiplayer ? 60 : 72, 170,
+		isMultiplayer ? "Multiplayer" : "Singleplayer", LCD_COLOR_WHITE);
+	Display_DrawString(24, 210, "Hold button 3s for home", LCD_COLOR_WHITE);
+}
+
+void Display_RenderStatsPlaceholder(void)
+{
+	LCD_Clear(LCD_COLOR_ORANGE);
+	Display_DrawStringLarge(80, 130, "STATS", LCD_COLOR_BLACK);
+	Display_DrawString(24, 210, "Hold button 3s for home", LCD_COLOR_BLACK);
 }

@@ -52,6 +52,9 @@ uint8_t Touch_IsInGrid(uint16_t px, uint16_t py);
 uint8_t Touch_ToGridRow(uint16_t py);
 uint8_t Touch_ToGridCol(uint16_t px);
 
+extern TIM_HandleTypeDef htim6;
+
+void Timer_Init(uint16_t psc, uint16_t arr);
 void GameDriver_Init(void);
 void GameDriver_HandleTouch(uint16_t x, uint16_t y);
 void GameDriver_HandleButtonTick(void);
