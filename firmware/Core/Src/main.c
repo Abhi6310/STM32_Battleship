@@ -31,30 +31,13 @@ static void SystemClock_Config(void);
   */
 int main(void)
 {
-  /* STM32F4xx HAL library initialization:
-       - Configure the Flash prefetch, instruction and Data caches
-       - Configure the Systick to generate an interrupt each 1 msec, each time incrementing uWtick. YOU CANNOT USE SYSTICK in interrupts. (No delay() and you cant wait and compare getTick(). Uou can access getTick(), but it wont increment inside a irq handler.
-       - Set NVIC Group Priority to 4
-       - Global MSP (MCU Support Package) initialization
-     */
   HAL_Init();
-
-  /* Configure the system clock to 168 MHz */
   SystemClock_Config();
-
   ApplicationInit();
-
-  LCD_Visual_Demo();
-
-  HAL_Delay(5000);
-
-  // DO NOT CALL THIS FUNCTION WHEN INTERRUPT MODE IS SELECTED IN THE COMPILE SWITCH IN stmpe811.h
-  // Un-comment the below function after setting COMPILE_TOUCH to 1 in stmpe811.h
-  LCD_Touch_Polling_Demo(); // This function Will not return
+  ApplicationRun();
 
   while (1)
   {
-
   }
 }
 
