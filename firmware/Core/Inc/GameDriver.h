@@ -28,6 +28,26 @@ typedef struct {
     CellState cells[GRID_SIZE][GRID_SIZE];
 } Grid;
 
+typedef enum { SHIP_DESTROYER, SHIP_SUBMARINE, SHIP_BATTLESHIP } ShipType;
+typedef enum { ORIENTATION_HORIZONTAL, ORIENTATION_VERTICAL } ShipOrientation;
+
+typedef struct {
+    ShipType type;
+    uint8_t length;
+    uint8_t startRow;
+    uint8_t startCol;
+    ShipOrientation orientation;
+    uint8_t hitCount;
+    uint8_t isPlaced;
+} Ship;
+
+typedef enum {
+    ATTACK_HIT,
+    ATTACK_MISS,
+    ATTACK_SUNK,
+    ATTACK_INVALID
+} AttackResult;
+
 uint8_t Touch_IsInGrid(uint16_t px, uint16_t py);
 uint8_t Touch_ToGridRow(uint16_t py);
 uint8_t Touch_ToGridCol(uint16_t px);
@@ -38,5 +58,12 @@ void GameDriver_HandleButtonTick(void);
 void GameDriver_HandleTimerTick(void);
 void GameDriver_ResetGame(void);
 GameState GameDriver_GetState(void);
+
+Grid* GameDriver_GetPlayerGrid(void);
+Grid* GameDriver_GetAIGrid(void);
+Ship* GameDriver_GetPlayerShips(void);
+Ship* GameDriver_GetAIShips(void);
+Ship* GameDriver_GetPlacingShip(void);
+uint8_t GameDriver_GetPlacingShipIndex(void);
 
 #endif /* INC_GAMEDRIVER_H_ */

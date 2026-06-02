@@ -33,5 +33,6 @@ void Display_DrawRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint32_t c
 void Display_DrawString(uint16_t x, uint16_t y, const char *str, uint32_t color);
 void Display_DrawStringLarge(uint16_t x, uint16_t y, const char *str, uint32_t color);
 void Display_RenderGrid(Grid *grid, uint16_t originX, uint16_t originY, uint8_t isAttackView);
+void Display_RenderHomeScreen(void);
 
 #endif /* INC_DISPLAYDRIVER_H_ */

@@ -75,3 +75,21 @@ void Display_DrawStringLarge(uint16_t x, uint16_t y, const char *str, uint32_t c
 	}
 	LCD_SetFont(&Font12x12);
 }
+
+void Display_RenderHomeScreen(void)
+{
+	LCD_Clear(LCD_COLOR_BLACK);
+	Display_DrawStringLarge(40, 60, "BATTLESHIP", LCD_COLOR_CYAN);
+
+	Display_FillRect(BTN_1P_X, BTN_1P_Y, BTN_W, BTN_H, LCD_COLOR_BLUE);
+	Display_DrawRect(BTN_1P_X, BTN_1P_Y, BTN_W, BTN_H, LCD_COLOR_WHITE);
+	Display_DrawString(BTN_1P_X + 28, BTN_1P_Y + 14, "1P", LCD_COLOR_WHITE);
+
+	Display_FillRect(BTN_2P_X, BTN_2P_Y, BTN_W, BTN_H, LCD_COLOR_DARKGREEN);
+	Display_DrawRect(BTN_2P_X, BTN_2P_Y, BTN_W, BTN_H, LCD_COLOR_WHITE);
+	Display_DrawString(BTN_2P_X + 28, BTN_2P_Y + 14, "2P", LCD_COLOR_WHITE);
+
+	Display_FillRect(BTN_STATS_X, BTN_STATS_Y, BTN_W, BTN_H, LCD_COLOR_ORANGE);
+	Display_DrawRect(BTN_STATS_X, BTN_STATS_Y, BTN_W, BTN_H, LCD_COLOR_WHITE);
+	Display_DrawString(BTN_STATS_X + 10, BTN_STATS_Y + 14, "STATS", LCD_COLOR_WHITE);
+}
