@@ -44,6 +44,17 @@
 #define STATS_HINT_X 24
 #define STATS_HINT_Y 210
 
+#define ATTACK_HEADER_X 20
+#define ATTACK_HEADER_Y 12
+#define STATUS_BAR_X 20
+#define STATUS_BAR_Y 244
+#define RESULT_OVERLAY_X 80
+#define RESULT_OVERLAY_Y 260
+#define GAME_OVER_TITLE_X 40
+#define GAME_OVER_TITLE_Y 130
+#define GAME_OVER_HINT_X 24
+#define GAME_OVER_HINT_Y 200
+
 void Display_FillRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint32_t color);
 void Display_DrawHLine(uint16_t x, uint16_t y, uint16_t len, uint32_t color);
 void Display_DrawRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint32_t color);
@@ -54,5 +65,9 @@ void Display_RenderHomeScreen(void);
 void Display_RenderPlacementScreen(uint8_t player);
 void Display_UpdatePlacementPreview(void);
 void Display_RenderStatsPlaceholder(void);
+void Display_RenderAttackScreen(uint8_t player);
+void Display_ShowHitResult(uint8_t player);
+void Display_ShowMissResult(uint8_t player);
+void Display_RenderGameOver(uint8_t winner);
 
 #endif /* INC_DISPLAYDRIVER_H_ */

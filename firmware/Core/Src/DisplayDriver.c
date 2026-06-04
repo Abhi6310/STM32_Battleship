@@ -155,3 +155,50 @@ void Display_RenderStatsPlaceholder(void)
 	Display_DrawStringLarge(STATS_TITLE_X, STATS_TITLE_Y, "STATS", LCD_COLOR_BLACK);
 	Display_DrawString(STATS_HINT_X, STATS_HINT_Y, "Hold button 3s for home", LCD_COLOR_BLACK);
 }
+
+static void renderShipStatusBar(uint8_t player)
+{
+	Ship *ownShips = (player == 2) ? GameDriver_GetAIShips() : GameDriver_GetPlayerShips();
+	static const char *labels[NUM_SHIPS] = { "DD", "SUB", "BB" };
+	uint16_t curX = STATUS_BAR_X;
+	for (uint8_t i = 0; i < NUM_SHIPS; i++)
+	{
+		uint32_t color;
+		if (ownShips[i].hitCount == 0) color = LCD_COLOR_GREEN;
+		else if (ownShips[i].hitCount >= ownShips[i].length) color = LCD_COLOR_DARKRED;
+		else color = LCD_COLOR_YELLOW;
+		Display_DrawString(curX, STATUS_BAR_Y, labels[i], color);
+		curX += (uint16_t)strlen(labels[i]) * Font.Width + Font.Width;
+	}
+}
+
+void Display_RenderAttackScreen(uint8_t player)
+{
+	LCD_Clear(LCD_COLOR_BLACK);
+	Display_DrawString(ATTACK_HEADER_X, ATTACK_HEADER_Y,
+		(player == 2) ? "P2: Tap to attack" : "P1: Tap to attack", LCD_COLOR_WHITE);
+	Grid *targetGrid = (player == 2) ? GameDriver_GetPlayerGrid() : GameDriver_GetAIGrid();
+	Display_RenderGrid(targetGrid, GRID_ORIGIN_X, GRID_ORIGIN_Y, 1);
+	renderShipStatusBar(player);
+}
+
+void Display_ShowHitResult(uint8_t player)
+{
+	Display_RenderAttackScreen(player);
+	Display_DrawStringLarge(RESULT_OVERLAY_X, RESULT_OVERLAY_Y, "HIT!", LCD_COLOR_RED);
+}
+
+void Display_ShowMissResult(uint8_t player)
+{
+	Display_RenderAttackScreen(player);
+	Display_DrawStringLarge(RESULT_OVERLAY_X, RESULT_OVERLAY_Y, "MISS", LCD_COLOR_DARKBLUE);
+}
+
+void Display_RenderGameOver(uint8_t winner)
+{
+	LCD_Clear(LCD_COLOR_BLACK);
+	Display_DrawStringLarge(GAME_OVER_TITLE_X, GAME_OVER_TITLE_Y,
+	                        (winner == 1) ? "P1 WINS" : "AI WINS",
+	                        LCD_COLOR_CYAN);
+	Display_DrawString(GAME_OVER_HINT_X, GAME_OVER_HINT_Y, "Tap to continue", LCD_COLOR_WHITE);
+}

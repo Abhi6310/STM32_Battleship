@@ -4,8 +4,10 @@
 
 #define BUTTON_HOLD_TICKS_3S 300
 #define PLACING_ORIENTATION_DEFAULT ORIENTATION_HORIZONTAL
+#define MAX_PLACEMENT_ATTEMPTS 100
 
 TIM_HandleTypeDef htim6;
+static RNG_HandleTypeDef rngHandle;
 
 static const Ship kShipTemplate[NUM_SHIPS] = {
     { SHIP_DESTROYER, DESTROYER_LENGTH, 0, 0, ORIENTATION_HORIZONTAL, 0, 1 },
@@ -132,6 +134,9 @@ void GameDriver_HandleTouch(uint16_t x, uint16_t y)
                     if (g_shipsPlaced >= NUM_SHIPS)
                     {
                         currentGameState = STATE_AI_SETUP;
+                        AI_PlaceShips(&aiGrid, aiShips);
+                        currentGameState = STATE_P1_ATTACK;
+                        Display_RenderAttackScreen(1);
                     }
                     else
                     {
@@ -143,6 +148,34 @@ void GameDriver_HandleTouch(uint16_t x, uint16_t y)
                     }
                 }
             }
+            break;
+
+        case STATE_P1_ATTACK:
+            if (Touch_IsInGrid(x, y))
+            {
+                uint8_t row = Touch_ToGridRow(y);
+                uint8_t col = Touch_ToGridCol(x);
+                AttackResult res = processAttack(&aiGrid, aiShips, row, col);
+                if (res == ATTACK_INVALID) break;
+                if (res == ATTACK_HIT || res == ATTACK_SUNK)
+                {
+                    Display_ShowHitResult(1);
+                    if (res == ATTACK_SUNK && GameDriver_CheckWin(aiShips))
+                    {
+                        currentGameState = STATE_GAME_OVER;
+                        Display_RenderGameOver(1);
+                    }
+                }
+                else
+                {
+                    Display_ShowMissResult(1);
+                }
+            }
+            break;
+
+        case STATE_GAME_OVER:
+            GameDriver_ResetGame();
+            Display_RenderHomeScreen();
             break;
 
         default:
@@ -175,6 +208,38 @@ void Timer_Init(uint16_t psc, uint16_t arr)
     HAL_TIM_Base_Start_IT(&htim6);
 }
 
+void RNG_Init(void)
+{
+    __HAL_RCC_RNG_CLK_ENABLE();
+    rngHandle.Instance = RNG;
+    HAL_RNG_Init(&rngHandle);
+}
+
+void AI_PlaceShips(Grid *grid, Ship ships[])
+{
+    for (uint8_t i = 0; i < NUM_SHIPS; i++)
+    {
+        uint32_t randVal;
+        for (uint16_t attempt = 0; attempt < MAX_PLACEMENT_ATTEMPTS; attempt++)
+        {
+            HAL_RNG_GenerateRandomNumber(&rngHandle, &randVal);
+            ships[i].startRow = randVal % GRID_SIZE;
+            HAL_RNG_GenerateRandomNumber(&rngHandle, &randVal);
+            ships[i].startCol = randVal % GRID_SIZE;
+            HAL_RNG_GenerateRandomNumber(&rngHandle, &randVal);
+            ships[i].orientation = (randVal & 1) ? ORIENTATION_VERTICAL : ORIENTATION_HORIZONTAL;
+            if (GameDriver_IsPlacementValid(grid, &ships[i])) break;
+        }
+        for (uint8_t j = 0; j < ships[i].length; j++)
+        {
+            uint8_t r, c;
+            shipCellAt(&ships[i], j, &r, &c);
+            grid->cells[r][c] = CELL_SHIP;
+        }
+        ships[i].isPlaced = 1;
+    }
+}
+
 void GameDriver_HandleButtonTick(void)
 {
     if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0) == GPIO_PIN_SET)
@@ -196,6 +261,11 @@ void GameDriver_HandleButtonTick(void)
             {
                 GameDriver_RotateSelectedShip();
                 Display_UpdatePlacementPreview();
+            }
+            else if (currentGameState == STATE_GAME_OVER)
+            {
+                GameDriver_ResetGame();
+                Display_RenderHomeScreen();
             }
         }
         buttonHeldTicks = 0;
@@ -276,4 +346,54 @@ void GameDriver_RotateSelectedShip(void)
     {
         g_placingShip.orientation = temp.orientation;
     }
+}
+
+static uint8_t isShipAtCell(const Ship *ship, uint8_t row, uint8_t col)
+{
+    for (uint8_t i = 0; i < ship->length; i++)
+    {
+        uint8_t r, c;
+        shipCellAt(ship, i, &r, &c);
+        if (r == row && c == col) return 1;
+    }
+    return 0;
+}
+
+static AttackResult processAttack(Grid *grid, Ship ships[], uint8_t row, uint8_t col)
+{
+    CellState existing = grid->cells[row][col];
+    if (existing == CELL_HIT || existing == CELL_MISS || existing == CELL_SUNK)
+        return ATTACK_INVALID;
+
+    for (uint8_t i = 0; i < NUM_SHIPS; i++)
+    {
+        if (!isShipAtCell(&ships[i], row, col)) continue;
+
+        grid->cells[row][col] = CELL_HIT;
+        ships[i].hitCount++;
+
+        if (ships[i].hitCount >= ships[i].length)
+        {
+            for (uint8_t j = 0; j < ships[i].length; j++)
+            {
+                uint8_t r, c;
+                shipCellAt(&ships[i], j, &r, &c);
+                grid->cells[r][c] = CELL_SUNK;
+            }
+            return ATTACK_SUNK;
+        }
+        return ATTACK_HIT;
+    }
+
+    grid->cells[row][col] = CELL_MISS;
+    return ATTACK_MISS;
+}
+
+uint8_t GameDriver_CheckWin(Ship ships[])
+{
+    for (uint8_t i = 0; i < NUM_SHIPS; i++)
+    {
+        if (ships[i].hitCount < ships[i].length) return 0;
+    }
+    return 1;
 }
