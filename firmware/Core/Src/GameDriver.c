@@ -1,15 +1,17 @@
 #include "GameDriver.h"
 #include "DisplayDriver.h"
-
-#define TOUCH_IN_RECT(x, y, bx, by, bw, bh) \
-    ((uint16_t)(x) >= (uint16_t)(bx) && \
-     (uint16_t)(x) < (uint16_t)((bx) + (bw)) && \
-     (uint16_t)(y) >= (uint16_t)(by) && \
-     (uint16_t)(y) < (uint16_t)((by) + (bh)))
+#include <string.h>
 
 #define BUTTON_HOLD_TICKS_3S 300
+#define PLACING_ORIENTATION_DEFAULT ORIENTATION_HORIZONTAL
 
 TIM_HandleTypeDef htim6;
+
+static const Ship kShipTemplate[NUM_SHIPS] = {
+    { SHIP_DESTROYER, DESTROYER_LENGTH, 0, 0, ORIENTATION_HORIZONTAL, 0, 1 },
+    { SHIP_SUBMARINE, SUBMARINE_LENGTH, 0, 0, ORIENTATION_HORIZONTAL, 0, 1 },
+    { SHIP_BATTLESHIP, BATTLESHIP_LENGTH, 0, 0, ORIENTATION_HORIZONTAL, 0, 1 },
+};
 
 static GameState currentGameState = STATE_HOME_SCREEN;
 
@@ -22,6 +24,24 @@ static uint8_t g_placingShipIndex;
 static uint8_t g_shipsPlaced;
 static uint8_t g_isMultiplayer;
 static uint16_t buttonHeldTicks;
+
+static inline uint8_t pointInRect(uint16_t x, uint16_t y,
+                                  uint16_t rx, uint16_t ry,
+                                  uint16_t rw, uint16_t rh)
+{
+    return (x >= rx) && (x < rx + rw) && (y >= ry) && (y < ry + rh);
+}
+
+static inline void shipCellAt(const Ship *s, uint8_t i, uint8_t *row, uint8_t *col)
+{
+    *row = s->startRow + ((s->orientation == ORIENTATION_VERTICAL) ? i : 0);
+    *col = s->startCol + ((s->orientation == ORIENTATION_HORIZONTAL) ? i : 0);
+}
+
+void GameDriver_GetShipCell(const Ship *ship, uint8_t i, uint8_t *row, uint8_t *col)
+{
+    shipCellAt(ship, i, row, col);
+}
 
 uint8_t Touch_IsInGrid(uint16_t px, uint16_t py)
 {
@@ -41,21 +61,10 @@ uint8_t Touch_ToGridCol(uint16_t px)
 
 void GameDriver_Init(void)
 {
-    for (uint8_t r = 0; r < GRID_SIZE; r++)
-        for (uint8_t c = 0; c < GRID_SIZE; c++)
-            playerGrid.cells[r][c] = CELL_EMPTY;
-
-    for (uint8_t r = 0; r < GRID_SIZE; r++)
-        for (uint8_t c = 0; c < GRID_SIZE; c++)
-            aiGrid.cells[r][c] = CELL_EMPTY;
-
-    playerShips[0] = (Ship){ SHIP_DESTROYER, DESTROYER_LENGTH, 0, 0, ORIENTATION_HORIZONTAL, 0, 1 };
-    playerShips[1] = (Ship){ SHIP_SUBMARINE, SUBMARINE_LENGTH, 0, 0, ORIENTATION_HORIZONTAL, 0, 1 };
-    playerShips[2] = (Ship){ SHIP_BATTLESHIP, BATTLESHIP_LENGTH, 0, 0, ORIENTATION_HORIZONTAL, 0, 1 };
-
-    aiShips[0] = (Ship){ SHIP_DESTROYER, DESTROYER_LENGTH, 0, 0, ORIENTATION_HORIZONTAL, 0, 1 };
-    aiShips[1] = (Ship){ SHIP_SUBMARINE, SUBMARINE_LENGTH, 0, 0, ORIENTATION_HORIZONTAL, 0, 1 };
-    aiShips[2] = (Ship){ SHIP_BATTLESHIP, BATTLESHIP_LENGTH, 0, 0, ORIENTATION_HORIZONTAL, 0, 1 };
+    memset(&playerGrid, 0, sizeof(playerGrid));
+    memset(&aiGrid, 0, sizeof(aiGrid));
+    memcpy(playerShips, kShipTemplate, sizeof(kShipTemplate));
+    memcpy(aiShips, kShipTemplate, sizeof(kShipTemplate));
 
     g_shipsPlaced = 0;
     g_placingShipIndex = 0;
@@ -65,31 +74,91 @@ void GameDriver_Init(void)
     currentGameState = STATE_HOME_SCREEN;
 }
 
+static void beginPlayerPlacement(uint8_t player)
+{
+    g_shipsPlaced = 0;
+    g_placingShipIndex = 0;
+    g_placingShip = playerShips[0];
+    g_placingShip.orientation = PLACING_ORIENTATION_DEFAULT;
+    g_placingShip.startRow = 0;
+    g_placingShip.startCol = 0;
+    currentGameState = (player == 2) ? STATE_P2_PLACEMENT : STATE_P1_PLACEMENT;
+    Display_RenderPlacementScreen(player);
+}
+
 void GameDriver_HandleTouch(uint16_t x, uint16_t y)
 {
     switch (currentGameState)
     {
         case STATE_HOME_SCREEN:
-            if (TOUCH_IN_RECT(x, y, HOME_BTN_X, BTN_SINGLE_Y, HOME_BTN_W, HOME_BTN_H))
+            if (pointInRect(x, y, HOME_BTN_X, BTN_SINGLE_Y, HOME_BTN_W, HOME_BTN_H))
             {
-                currentGameState = STATE_P1_PLACEMENT;
-                Display_RenderPlacementPlaceholder(0);
+                beginPlayerPlacement(1);
             }
-            else if (TOUCH_IN_RECT(x, y, HOME_BTN_X, BTN_MULTI_Y, HOME_BTN_W, HOME_BTN_H))
+            else if (pointInRect(x, y, HOME_BTN_X, BTN_MULTI_Y, HOME_BTN_W, HOME_BTN_H))
             {
                 g_isMultiplayer = 1;
-                currentGameState = STATE_P1_PLACEMENT;
-                Display_RenderPlacementPlaceholder(1);
+                beginPlayerPlacement(1);
             }
-            else if (TOUCH_IN_RECT(x, y, HOME_BTN_X, BTN_STATS_Y, HOME_BTN_W, HOME_BTN_H))
+            else if (pointInRect(x, y, HOME_BTN_X, BTN_STATS_Y, HOME_BTN_W, HOME_BTN_H))
             {
                 currentGameState = STATE_STATS_SCREEN;
                 Display_RenderStatsPlaceholder();
             }
             break;
+
+        case STATE_P1_PLACEMENT:
+            if (Touch_IsInGrid(x, y))
+            {
+                g_placingShip.startRow = Touch_ToGridRow(y);
+                g_placingShip.startCol = Touch_ToGridCol(x);
+                Display_UpdatePlacementPreview();
+            }
+            else if (pointInRect(x, y, BTN_PLACE_X, BTN_PLACE_Y, BTN_W, BTN_H))
+            {
+                if (GameDriver_IsPlacementValid(&playerGrid, &g_placingShip))
+                {
+                    for (uint8_t i = 0; i < g_placingShip.length; i++)
+                    {
+                        uint8_t r, c;
+                        shipCellAt(&g_placingShip, i, &r, &c);
+                        playerGrid.cells[r][c] = CELL_SHIP;
+                    }
+                    playerShips[g_placingShipIndex] = g_placingShip;
+                    playerShips[g_placingShipIndex].isPlaced = 1;
+                    g_shipsPlaced++;
+                    g_placingShipIndex++;
+
+                    if (g_shipsPlaced >= NUM_SHIPS)
+                    {
+                        currentGameState = STATE_AI_SETUP;
+                    }
+                    else
+                    {
+                        g_placingShip = playerShips[g_placingShipIndex];
+                        g_placingShip.orientation = PLACING_ORIENTATION_DEFAULT;
+                        g_placingShip.startRow = 0;
+                        g_placingShip.startCol = 0;
+                        Display_RenderPlacementScreen(1);
+                    }
+                }
+            }
+            break;
+
         default:
             break;
     }
+}
+
+void Button_Init(void)
+{
+    GPIO_InitTypeDef GPIO_InitStructure;
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+    GPIO_InitStructure.Pin = GPIO_PIN_0;
+    GPIO_InitStructure.Mode = GPIO_MODE_INPUT;
+    GPIO_InitStructure.Pull = GPIO_NOPULL;
+    GPIO_InitStructure.Speed = GPIO_SPEED_LOW;
+    HAL_GPIO_Init(GPIOA, &GPIO_InitStructure);
 }
 
 void Timer_Init(uint16_t psc, uint16_t arr)
@@ -121,6 +190,14 @@ void GameDriver_HandleButtonTick(void)
     }
     else
     {
+        if (buttonHeldTicks > 0 && buttonHeldTicks < BUTTON_HOLD_TICKS_3S)
+        {
+            if (currentGameState == STATE_P1_PLACEMENT)
+            {
+                GameDriver_RotateSelectedShip();
+                Display_UpdatePlacementPreview();
+            }
+        }
         buttonHeldTicks = 0;
     }
 }
@@ -131,21 +208,10 @@ void GameDriver_HandleTimerTick(void)
 
 void GameDriver_ResetGame(void)
 {
-    for (uint8_t r = 0; r < GRID_SIZE; r++)
-        for (uint8_t c = 0; c < GRID_SIZE; c++)
-            playerGrid.cells[r][c] = CELL_EMPTY;
-
-    for (uint8_t r = 0; r < GRID_SIZE; r++)
-        for (uint8_t c = 0; c < GRID_SIZE; c++)
-            aiGrid.cells[r][c] = CELL_EMPTY;
-
-    playerShips[0] = (Ship){ SHIP_DESTROYER, DESTROYER_LENGTH,  0, 0, ORIENTATION_HORIZONTAL, 0, 1 };
-    playerShips[1] = (Ship){ SHIP_SUBMARINE, SUBMARINE_LENGTH,  0, 0, ORIENTATION_HORIZONTAL, 0, 1 };
-    playerShips[2] = (Ship){ SHIP_BATTLESHIP, BATTLESHIP_LENGTH, 0, 0, ORIENTATION_HORIZONTAL, 0, 1 };
-
-    aiShips[0] = (Ship){ SHIP_DESTROYER,  DESTROYER_LENGTH, 0, 0, ORIENTATION_HORIZONTAL, 0, 1 };
-    aiShips[1] = (Ship){ SHIP_SUBMARINE,  SUBMARINE_LENGTH, 0, 0, ORIENTATION_HORIZONTAL, 0, 1 };
-    aiShips[2] = (Ship){ SHIP_BATTLESHIP, BATTLESHIP_LENGTH, 0, 0, ORIENTATION_HORIZONTAL, 0, 1 };
+    memset(&playerGrid, 0, sizeof(playerGrid));
+    memset(&aiGrid, 0, sizeof(aiGrid));
+    memcpy(playerShips, kShipTemplate, sizeof(kShipTemplate));
+    memcpy(aiShips, kShipTemplate, sizeof(kShipTemplate));
 
     g_shipsPlaced = 0;
     g_placingShipIndex = 0;
@@ -188,4 +254,26 @@ Ship* GameDriver_GetPlacingShip(void)
 uint8_t GameDriver_GetPlacingShipIndex(void)
 {
     return g_placingShipIndex;
+}
+
+uint8_t GameDriver_IsPlacementValid(Grid *grid, Ship *ship)
+{
+    for (uint8_t i = 0; i < ship->length; i++)
+    {
+        uint8_t r, c;
+        shipCellAt(ship, i, &r, &c);
+        if (r >= GRID_SIZE || c >= GRID_SIZE) return 0;
+        if (grid->cells[r][c] != CELL_EMPTY) return 0;
+    }
+    return 1;
+}
+
+void GameDriver_RotateSelectedShip(void)
+{
+    Ship temp = g_placingShip;
+    temp.orientation = (temp.orientation == ORIENTATION_HORIZONTAL) ? ORIENTATION_VERTICAL : ORIENTATION_HORIZONTAL;
+    if (GameDriver_IsPlacementValid(&playerGrid, &temp))
+    {
+        g_placingShip.orientation = temp.orientation;
+    }
 }

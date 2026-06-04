@@ -2,6 +2,7 @@
 #include "LCD_Driver.h"
 #include "GameDriver.h"
 #include "DisplayDriver.h"
+#include "TouchConfig.h"
 
 #define TOUCH_Y_INVERT_MAX 295
 #define TIMER_PSC_10MS 839
@@ -21,10 +22,11 @@ void ApplicationInit(void)
 	LTCD__Init();
 	LTCD_Layer_Init(0);
 	LCD_Clear(LCD_COLOR_BLACK);
-	LCD_SetFont(&Font12x12);
+	LCD_SetFont(&Font);
 	InitializeLCDTouch();
-	touchData.orientation = STMPE811_Orientation_Portrait_2;
+	touchData.orientation = TOUCH_ORIENTATION;
 	GameDriver_Init();
+	Button_Init();
 	Timer_Init(TIMER_PSC_10MS, TIMER_ARR_10MS);
 	Display_RenderHomeScreen();
 }
@@ -40,14 +42,11 @@ void ApplicationRun(void)
 			GameDriver_HandleTimerTick();
 		}
 
-		if (returnTouchStateAndLocation(&touchData) == STMPE811_State_Pressed)
+		if (returnTouchStateAndLocation(&touchData) == TOUCH_PRESSED &&
+			touchData.last_pressed == TOUCH_RELEASED)
 		{
 			touchData.y = TOUCH_Y_INVERT_MAX - touchData.y;
-			if (touchData.pressed == STMPE811_State_Pressed &&
-				touchData.last_pressed == STMPE811_State_Released)
-			{
-				GameDriver_HandleTouch(touchData.x, touchData.y);
-			}
+			GameDriver_HandleTouch(touchData.x, touchData.y);
 		}
 	}
 }

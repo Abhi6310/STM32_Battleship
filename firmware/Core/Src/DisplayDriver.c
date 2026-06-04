@@ -6,13 +6,19 @@ static uint32_t getCellDisplayColor(CellState cell, uint8_t isAttackView)
 {
     switch (cell)
     {
-        case CELL_EMPTY:return LCD_COLOR_GRAY;
+        case CELL_EMPTY: return LCD_COLOR_GRAY;
         case CELL_SHIP: return isAttackView ? LCD_COLOR_GRAY : LCD_COLOR_LIGHTBLUE;
         case CELL_HIT: return LCD_COLOR_RED;
         case CELL_MISS: return LCD_COLOR_DARKBLUE;
         case CELL_SUNK: return LCD_COLOR_DARKRED;
         default: return LCD_COLOR_GRAY;
     }
+}
+
+static uint16_t centerTextX(uint16_t boxX, uint16_t boxW, const char *str)
+{
+    uint16_t textPx = (uint16_t)strlen(str) * Font.Width;
+    return boxX + (boxW - textPx) / 2;
 }
 
 void Display_RenderGrid(Grid *grid, uint16_t originX, uint16_t originY, uint8_t isAttackView)
@@ -57,55 +63,95 @@ void Display_DrawString(uint16_t x, uint16_t y, const char *str, uint32_t color)
 	while (*str)
 	{
 		LCD_DisplayChar(curX, y, (uint8_t)*str);
-		curX += FONT_CHAR_WIDTH;
+		curX += Font.Width;
 		str++;
 	}
 }
 
 void Display_DrawStringLarge(uint16_t x, uint16_t y, const char *str, uint32_t color)
 {
-	LCD_SetFont(&Font16x24);
+	LCD_SetFont(&FontLarge);
 	LCD_SetTextColor(color);
 	uint16_t curX = x;
 	while (*str)
 	{
 		LCD_DisplayChar(curX, y, (uint8_t)*str);
-		curX += FONT16_CHAR_WIDTH;
+		curX += FontLarge.Width;
 		str++;
 	}
-	LCD_SetFont(&Font12x12);
+	LCD_SetFont(&Font);
 }
 
 void Display_RenderHomeScreen(void)
 {
 	LCD_Clear(LCD_COLOR_BLACK);
-	Display_DrawStringLarge(40, 20, "BATTLESHIP", LCD_COLOR_CYAN);
+	Display_DrawStringLarge(HOME_TITLE_X, HOME_TITLE_Y, "BATTLESHIP", LCD_COLOR_CYAN);
 
 	Display_FillRect(HOME_BTN_X, BTN_SINGLE_Y, HOME_BTN_W, HOME_BTN_H, LCD_COLOR_BLUE);
 	Display_DrawRect(HOME_BTN_X, BTN_SINGLE_Y, HOME_BTN_W, HOME_BTN_H, LCD_COLOR_WHITE);
-	Display_DrawString(HOME_BTN_X + 28, BTN_SINGLE_Y + 14, "Singleplayer", LCD_COLOR_WHITE);
+	Display_DrawString(centerTextX(HOME_BTN_X, HOME_BTN_W, "Singleplayer"),
+	                   BTN_SINGLE_Y + BTN_TEXT_Y_OFFSET, "Singleplayer", LCD_COLOR_WHITE);
 
 	Display_FillRect(HOME_BTN_X, BTN_MULTI_Y, HOME_BTN_W, HOME_BTN_H, LCD_COLOR_DARKGREEN);
 	Display_DrawRect(HOME_BTN_X, BTN_MULTI_Y, HOME_BTN_W, HOME_BTN_H, LCD_COLOR_WHITE);
-	Display_DrawString(HOME_BTN_X + 34, BTN_MULTI_Y + 14, "Multiplayer", LCD_COLOR_WHITE);
+	Display_DrawString(centerTextX(HOME_BTN_X, HOME_BTN_W, "Multiplayer"),
+	                   BTN_MULTI_Y + BTN_TEXT_Y_OFFSET, "Multiplayer", LCD_COLOR_WHITE);
 
 	Display_FillRect(HOME_BTN_X, BTN_STATS_Y, HOME_BTN_W, HOME_BTN_H, LCD_COLOR_ORANGE);
 	Display_DrawRect(HOME_BTN_X, BTN_STATS_Y, HOME_BTN_W, HOME_BTN_H, LCD_COLOR_WHITE);
-	Display_DrawString(HOME_BTN_X + 70, BTN_STATS_Y + 14, "Stats", LCD_COLOR_WHITE);
+	Display_DrawString(centerTextX(HOME_BTN_X, HOME_BTN_W, "Stats"),
+	                   BTN_STATS_Y + BTN_TEXT_Y_OFFSET, "Stats", LCD_COLOR_WHITE);
 }
 
-void Display_RenderPlacementPlaceholder(uint8_t isMultiplayer)
+void Display_RenderPlacementScreen(uint8_t player)
 {
-	LCD_Clear(LCD_COLOR_DARKBLUE);
-	Display_DrawStringLarge(48, 130, "PLACEMENT", LCD_COLOR_WHITE);
-	Display_DrawString(isMultiplayer ? 60 : 72, 170,
-		isMultiplayer ? "Multiplayer" : "Singleplayer", LCD_COLOR_WHITE);
-	Display_DrawString(24, 210, "Hold button 3s for home", LCD_COLOR_WHITE);
+	LCD_Clear(LCD_COLOR_BLACK);
+	Display_DrawString(PLACEMENT_HEADER_X, PLACEMENT_HEADER_Y,
+	                   (player == 2) ? "P2: Place your ships" : "P1: Place your ships",
+	                   LCD_COLOR_WHITE);
+
+	Grid *activeGrid = (player == 2) ? GameDriver_GetAIGrid() : GameDriver_GetPlayerGrid();
+	Display_RenderGrid(activeGrid, GRID_ORIGIN_X, GRID_ORIGIN_Y, 0);
+
+	Display_FillRect(BTN_PLACE_X, BTN_PLACE_Y, BTN_W, BTN_H, LCD_COLOR_BLUE);
+	Display_DrawRect(BTN_PLACE_X, BTN_PLACE_Y, BTN_W, BTN_H, LCD_COLOR_WHITE);
+	Display_DrawString(centerTextX(BTN_PLACE_X, BTN_W, "PLACE"),
+	                   BTN_PLACE_Y + BTN_TEXT_Y_OFFSET, "PLACE", LCD_COLOR_WHITE);
+
+	uint8_t shipIdx = GameDriver_GetPlacingShipIndex();
+	if (shipIdx < NUM_SHIPS)
+	{
+		const char *names[NUM_SHIPS] = { "Destroyer(2)", "Submarine(3)", "Battleship(4)" };
+		Display_DrawString(SHIP_NAME_X, SHIP_NAME_Y, names[shipIdx], LCD_COLOR_YELLOW);
+		Display_DrawString(HINT_TEXT_X, HINT_TEXT_Y, "Btn=rotate Tap=select", LCD_COLOR_GRAY);
+	}
+}
+
+void Display_UpdatePlacementPreview(void)
+{
+	uint8_t isP2 = (GameDriver_GetState() == STATE_P2_PLACEMENT);
+	Grid *activeGrid = isP2 ? GameDriver_GetAIGrid() : GameDriver_GetPlayerGrid();
+	Ship *pendingShip = GameDriver_GetPlacingShip();
+
+	Display_RenderGrid(activeGrid, GRID_ORIGIN_X, GRID_ORIGIN_Y, 0);
+
+	uint32_t previewColor = GameDriver_IsPlacementValid(activeGrid, pendingShip) ? LCD_COLOR_CYAN : LCD_COLOR_RED;
+	for (uint8_t i = 0; i < pendingShip->length; i++)
+	{
+		uint8_t r, c;
+		GameDriver_GetShipCell(pendingShip, i, &r, &c);
+		if (r < GRID_SIZE && c < GRID_SIZE)
+		{
+			uint16_t px = GRID_ORIGIN_X + c * GRID_CELL_SIZE;
+			uint16_t py = GRID_ORIGIN_Y + r * GRID_CELL_SIZE;
+			Display_FillRect(px + 1, py + 1, GRID_CELL_SIZE - 2, GRID_CELL_SIZE - 2, previewColor);
+		}
+	}
 }
 
 void Display_RenderStatsPlaceholder(void)
 {
 	LCD_Clear(LCD_COLOR_ORANGE);
-	Display_DrawStringLarge(80, 130, "STATS", LCD_COLOR_BLACK);
-	Display_DrawString(24, 210, "Hold button 3s for home", LCD_COLOR_BLACK);
+	Display_DrawStringLarge(STATS_TITLE_X, STATS_TITLE_Y, "STATS", LCD_COLOR_BLACK);
+	Display_DrawString(STATS_HINT_X, STATS_HINT_Y, "Hold button 3s for home", LCD_COLOR_BLACK);
 }

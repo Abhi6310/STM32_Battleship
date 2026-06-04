@@ -55,6 +55,7 @@ uint8_t Touch_ToGridCol(uint16_t px);
 extern TIM_HandleTypeDef htim6;
 
 void Timer_Init(uint16_t psc, uint16_t arr);
+void Button_Init(void);
 void GameDriver_Init(void);
 void GameDriver_HandleTouch(uint16_t x, uint16_t y);
 void GameDriver_HandleButtonTick(void);
@@ -68,5 +69,9 @@ Ship* GameDriver_GetPlayerShips(void);
 Ship* GameDriver_GetAIShips(void);
 Ship* GameDriver_GetPlacingShip(void);
 uint8_t GameDriver_GetPlacingShipIndex(void);
+
+uint8_t GameDriver_IsPlacementValid(Grid *grid, Ship *ship);
+void GameDriver_RotateSelectedShip(void);
+void GameDriver_GetShipCell(const Ship *ship, uint8_t i, uint8_t *row, uint8_t *col);
 
 #endif /* INC_GAMEDRIVER_H_ */
