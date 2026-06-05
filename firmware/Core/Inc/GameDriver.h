@@ -54,6 +54,7 @@ uint8_t Touch_ToGridCol(uint16_t px);
 
 void RNG_Init(void);
 void AI_PlaceShips(Grid *grid, Ship ships[]);
+AttackResult AI_Attack(Grid *grid, Ship ships[]);
 uint8_t GameDriver_CheckWin(Ship ships[]);
 
 extern TIM_HandleTypeDef htim6;

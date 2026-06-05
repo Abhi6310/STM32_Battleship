@@ -5,6 +5,8 @@
 #define BUTTON_HOLD_TICKS_3S 300
 #define PLACING_ORIENTATION_DEFAULT ORIENTATION_HORIZONTAL
 #define MAX_PLACEMENT_ATTEMPTS 100
+#define AI_QUEUE_MAX 16
+#define AI_RESULT_DISPLAY_TICKS 100
 
 TIM_HandleTypeDef htim6;
 static RNG_HandleTypeDef rngHandle;
@@ -26,6 +28,14 @@ static uint8_t g_placingShipIndex;
 static uint8_t g_shipsPlaced;
 static uint8_t g_isMultiplayer;
 static uint16_t buttonHeldTicks;
+
+static uint8_t aiTargetQueue[AI_QUEUE_MAX][2];
+static uint8_t aiTargetHead;
+static uint8_t aiTargetCount;
+static uint8_t aiInTargetMode;
+static uint8_t aiAttackFired;
+static uint16_t aiResultDelay;
+static AttackResult aiLastResult;
 
 static inline uint8_t pointInRect(uint16_t x, uint16_t y,
                                   uint16_t rx, uint16_t ry,
@@ -72,6 +82,13 @@ void GameDriver_Init(void)
     g_placingShipIndex = 0;
     g_isMultiplayer = 0;
     buttonHeldTicks = 0;
+
+    aiTargetHead = 0;
+    aiTargetCount = 0;
+    aiInTargetMode = 0;
+    aiAttackFired = 0;
+    aiResultDelay = 0;
+    aiLastResult = ATTACK_MISS;
 
     currentGameState = STATE_HOME_SCREEN;
 }
@@ -169,6 +186,7 @@ void GameDriver_HandleTouch(uint16_t x, uint16_t y)
                 else
                 {
                     Display_ShowMissResult(1);
+                    currentGameState = STATE_AI_ATTACK;
                 }
             }
             break;
@@ -274,6 +292,43 @@ void GameDriver_HandleButtonTick(void)
 
 void GameDriver_HandleTimerTick(void)
 {
+    if (currentGameState != STATE_AI_ATTACK)
+    {
+        aiAttackFired = 0;
+        aiResultDelay = 0;
+        return;
+    }
+
+    if (!aiAttackFired)
+    {
+        aiLastResult = AI_Attack(&playerGrid, playerShips);
+        if (aiLastResult == ATTACK_HIT || aiLastResult == ATTACK_SUNK)
+            Display_ShowHitResult(0);
+        else
+            Display_ShowMissResult(0);
+        aiAttackFired = 1;
+        aiResultDelay = 0;
+        return;
+    }
+
+    aiResultDelay++;
+    if (aiResultDelay < AI_RESULT_DISPLAY_TICKS) return;
+
+    aiAttackFired = 0;
+    aiResultDelay = 0;
+
+    if (aiLastResult == ATTACK_MISS)
+    {
+        currentGameState = STATE_P1_ATTACK;
+        Display_RenderAttackScreen(1);
+        return;
+    }
+
+    if (GameDriver_CheckWin(playerShips))
+    {
+        currentGameState = STATE_GAME_OVER;
+        Display_RenderGameOver(0);
+    }
 }
 
 void GameDriver_ResetGame(void)
@@ -287,6 +342,13 @@ void GameDriver_ResetGame(void)
     g_placingShipIndex = 0;
     g_isMultiplayer = 0;
     buttonHeldTicks = 0;
+
+    aiTargetHead = 0;
+    aiTargetCount = 0;
+    aiInTargetMode = 0;
+    aiAttackFired = 0;
+    aiResultDelay = 0;
+    aiLastResult = ATTACK_MISS;
 
     currentGameState = STATE_HOME_SCREEN;
 }
@@ -396,4 +458,78 @@ uint8_t GameDriver_CheckWin(Ship ships[])
         if (ships[i].hitCount < ships[i].length) return 0;
     }
     return 1;
+}
+
+static uint8_t isUnshotCell(const Grid *grid, uint8_t row, uint8_t col)
+{
+    CellState cs = grid->cells[row][col];
+    return (cs == CELL_EMPTY) || (cs == CELL_SHIP);
+}
+
+static void queueNeighborIfUnshot(const Grid *grid, int8_t r, int8_t c)
+{
+    if (r < 0 || r >= GRID_SIZE || c < 0 || c >= GRID_SIZE) return;
+    if (!isUnshotCell(grid, (uint8_t)r, (uint8_t)c)) return;
+    if (aiTargetCount >= AI_QUEUE_MAX) return;
+    uint8_t tail = (uint8_t)((aiTargetHead + aiTargetCount) % AI_QUEUE_MAX);
+    aiTargetQueue[tail][0] = (uint8_t)r;
+    aiTargetQueue[tail][1] = (uint8_t)c;
+    aiTargetCount++;
+}
+
+AttackResult AI_Attack(Grid *grid, Ship ships[])
+{
+    uint8_t row = 0;
+    uint8_t col = 0;
+    uint8_t haveCell = 0;
+
+    if (aiInTargetMode)
+    {
+        while (aiTargetCount > 0)
+        {
+            uint8_t tr = aiTargetQueue[aiTargetHead][0];
+            uint8_t tc = aiTargetQueue[aiTargetHead][1];
+            aiTargetHead = (uint8_t)((aiTargetHead + 1) % AI_QUEUE_MAX);
+            aiTargetCount--;
+            if (isUnshotCell(grid, tr, tc))
+            {
+                row = tr;
+                col = tc;
+                haveCell = 1;
+                break;
+            }
+        }
+        if (!haveCell) aiInTargetMode = 0;
+    }
+
+    if (!haveCell)
+    {
+        uint32_t randVal;
+        do
+        {
+            HAL_RNG_GenerateRandomNumber(&rngHandle, &randVal);
+            row = (uint8_t)(randVal % GRID_SIZE);
+            HAL_RNG_GenerateRandomNumber(&rngHandle, &randVal);
+            col = (uint8_t)(randVal % GRID_SIZE);
+        } while (!isUnshotCell(grid, row, col));
+    }
+
+    AttackResult res = processAttack(grid, ships, row, col);
+
+    if (res == ATTACK_HIT)
+    {
+        queueNeighborIfUnshot(grid, (int8_t)row - 1, (int8_t)col);
+        queueNeighborIfUnshot(grid, (int8_t)row + 1, (int8_t)col);
+        queueNeighborIfUnshot(grid, (int8_t)row, (int8_t)col - 1);
+        queueNeighborIfUnshot(grid, (int8_t)row, (int8_t)col + 1);
+        aiInTargetMode = (aiTargetCount > 0) ? 1 : 0;
+    }
+    else if (res == ATTACK_SUNK)
+    {
+        aiTargetHead = 0;
+        aiTargetCount = 0;
+        aiInTargetMode = 0;
+    }
+
+    return res;
 }

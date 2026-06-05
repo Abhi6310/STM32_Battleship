@@ -175,10 +175,31 @@ static void renderShipStatusBar(uint8_t player)
 void Display_RenderAttackScreen(uint8_t player)
 {
 	LCD_Clear(LCD_COLOR_BLACK);
-	Display_DrawString(ATTACK_HEADER_X, ATTACK_HEADER_Y,
-		(player == 2) ? "P2: Tap to attack" : "P1: Tap to attack", LCD_COLOR_WHITE);
-	Grid *targetGrid = (player == 2) ? GameDriver_GetPlayerGrid() : GameDriver_GetAIGrid();
-	Display_RenderGrid(targetGrid, GRID_ORIGIN_X, GRID_ORIGIN_Y, 1);
+	const char *header;
+	Grid *targetGrid;
+	uint8_t isAttackView;
+
+	if (player == 0)
+	{
+		header = "AI Turn";
+		targetGrid = GameDriver_GetPlayerGrid();
+		isAttackView = 0;
+	}
+	else if (player == 2)
+	{
+		header = "P2: Tap to attack";
+		targetGrid = GameDriver_GetPlayerGrid();
+		isAttackView = 1;
+	}
+	else
+	{
+		header = "P1: Tap to attack";
+		targetGrid = GameDriver_GetAIGrid();
+		isAttackView = 1;
+	}
+
+	Display_DrawString(ATTACK_HEADER_X, ATTACK_HEADER_Y, header, LCD_COLOR_WHITE);
+	Display_RenderGrid(targetGrid, GRID_ORIGIN_X, GRID_ORIGIN_Y, isAttackView);
 	renderShipStatusBar(player);
 }
 
