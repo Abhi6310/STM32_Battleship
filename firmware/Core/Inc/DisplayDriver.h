@@ -55,6 +55,11 @@
 #define GAME_OVER_HINT_X 24
 #define GAME_OVER_HINT_Y 200
 
+#define TRANSITION_TITLE_X 40
+#define TRANSITION_TITLE_Y 130
+#define TRANSITION_HINT_X 24
+#define TRANSITION_HINT_Y 200
+
 void Display_FillRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint32_t color);
 void Display_DrawHLine(uint16_t x, uint16_t y, uint16_t len, uint32_t color);
 void Display_DrawRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint32_t color);
@@ -69,5 +74,7 @@ void Display_RenderAttackScreen(uint8_t player);
 void Display_ShowHitResult(uint8_t player);
 void Display_ShowMissResult(uint8_t player);
 void Display_RenderGameOver(uint8_t winner);
+void Display_RenderTransitionScreen(const char *message);
+void Display_RenderStateForTarget(GameState target);
 
 #endif /* INC_DISPLAYDRIVER_H_ */

@@ -217,9 +217,26 @@ void Display_ShowMissResult(uint8_t player)
 
 void Display_RenderGameOver(uint8_t winner)
 {
+	const char *title = (winner == 1) ? "P1 WINS" : (winner == 2) ? "P2 WINS" : "AI WINS";
 	LCD_Clear(LCD_COLOR_BLACK);
-	Display_DrawStringLarge(GAME_OVER_TITLE_X, GAME_OVER_TITLE_Y,
-	                        (winner == 1) ? "P1 WINS" : "AI WINS",
-	                        LCD_COLOR_CYAN);
+	Display_DrawStringLarge(GAME_OVER_TITLE_X, GAME_OVER_TITLE_Y, title, LCD_COLOR_CYAN);
 	Display_DrawString(GAME_OVER_HINT_X, GAME_OVER_HINT_Y, "Tap to continue", LCD_COLOR_WHITE);
+}
+
+void Display_RenderTransitionScreen(const char *message)
+{
+	LCD_Clear(LCD_COLOR_DARKBLUE);
+	Display_DrawStringLarge(TRANSITION_TITLE_X, TRANSITION_TITLE_Y, message, LCD_COLOR_WHITE);
+	Display_DrawString(TRANSITION_HINT_X, TRANSITION_HINT_Y, "Press button when ready", LCD_COLOR_WHITE);
+}
+
+void Display_RenderStateForTarget(GameState target)
+{
+	switch (target)
+	{
+		case STATE_P2_PLACEMENT: Display_RenderPlacementScreen(2); break;
+		case STATE_P1_ATTACK: Display_RenderAttackScreen(1); break;
+		case STATE_P2_ATTACK: Display_RenderAttackScreen(2); break;
+		default: Display_RenderHomeScreen(); break;
+	}
 }

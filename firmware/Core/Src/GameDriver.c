@@ -27,6 +27,7 @@ static Ship g_placingShip;
 static uint8_t g_placingShipIndex;
 static uint8_t g_shipsPlaced;
 static uint8_t g_isMultiplayer;
+static GameState nextTransitionTarget = STATE_HOME_SCREEN;
 static uint16_t buttonHeldTicks;
 
 static uint8_t aiTargetQueue[AI_QUEUE_MAX][2];
@@ -81,6 +82,7 @@ void GameDriver_Init(void)
     g_shipsPlaced = 0;
     g_placingShipIndex = 0;
     g_isMultiplayer = 0;
+    nextTransitionTarget = STATE_HOME_SCREEN;
     buttonHeldTicks = 0;
 
     aiTargetHead = 0;
@@ -150,10 +152,19 @@ void GameDriver_HandleTouch(uint16_t x, uint16_t y)
 
                     if (g_shipsPlaced >= NUM_SHIPS)
                     {
-                        currentGameState = STATE_AI_SETUP;
-                        AI_PlaceShips(&aiGrid, aiShips);
-                        currentGameState = STATE_P1_ATTACK;
-                        Display_RenderAttackScreen(1);
+                        if (g_isMultiplayer)
+                        {
+                            nextTransitionTarget = STATE_P2_PLACEMENT;
+                            currentGameState = STATE_TRANSITION_SCREEN;
+                            Display_RenderTransitionScreen("Pass to P2");
+                        }
+                        else
+                        {
+                            currentGameState = STATE_AI_SETUP;
+                            AI_PlaceShips(&aiGrid, aiShips);
+                            currentGameState = STATE_P1_ATTACK;
+                            Display_RenderAttackScreen(1);
+                        }
                     }
                     else
                     {
@@ -162,6 +173,46 @@ void GameDriver_HandleTouch(uint16_t x, uint16_t y)
                         g_placingShip.startRow = 0;
                         g_placingShip.startCol = 0;
                         Display_RenderPlacementScreen(1);
+                    }
+                }
+            }
+            break;
+
+        case STATE_P2_PLACEMENT:
+            if (Touch_IsInGrid(x, y))
+            {
+                g_placingShip.startRow = Touch_ToGridRow(y);
+                g_placingShip.startCol = Touch_ToGridCol(x);
+                Display_UpdatePlacementPreview();
+            }
+            else if (pointInRect(x, y, BTN_PLACE_X, BTN_PLACE_Y, BTN_W, BTN_H))
+            {
+                if (GameDriver_IsPlacementValid(&aiGrid, &g_placingShip))
+                {
+                    for (uint8_t i = 0; i < g_placingShip.length; i++)
+                    {
+                        uint8_t r, c;
+                        shipCellAt(&g_placingShip, i, &r, &c);
+                        aiGrid.cells[r][c] = CELL_SHIP;
+                    }
+                    aiShips[g_placingShipIndex] = g_placingShip;
+                    aiShips[g_placingShipIndex].isPlaced = 1;
+                    g_shipsPlaced++;
+                    g_placingShipIndex++;
+
+                    if (g_shipsPlaced >= NUM_SHIPS)
+                    {
+                        nextTransitionTarget = STATE_P1_ATTACK;
+                        currentGameState = STATE_TRANSITION_SCREEN;
+                        Display_RenderTransitionScreen("Pass back to P1");
+                    }
+                    else
+                    {
+                        g_placingShip = aiShips[g_placingShipIndex];
+                        g_placingShip.orientation = PLACING_ORIENTATION_DEFAULT;
+                        g_placingShip.startRow = 0;
+                        g_placingShip.startCol = 0;
+                        Display_RenderPlacementScreen(2);
                     }
                 }
             }
@@ -185,8 +236,42 @@ void GameDriver_HandleTouch(uint16_t x, uint16_t y)
                 }
                 else
                 {
-                    Display_ShowMissResult(1);
-                    currentGameState = STATE_AI_ATTACK;
+                    if (g_isMultiplayer)
+                    {
+                        nextTransitionTarget = STATE_P2_ATTACK;
+                        currentGameState = STATE_TRANSITION_SCREEN;
+                        Display_RenderTransitionScreen("MISS! Pass to P2");
+                    }
+                    else
+                    {
+                        Display_ShowMissResult(1);
+                        currentGameState = STATE_AI_ATTACK;
+                    }
+                }
+            }
+            break;
+
+        case STATE_P2_ATTACK:
+            if (Touch_IsInGrid(x, y))
+            {
+                uint8_t row = Touch_ToGridRow(y);
+                uint8_t col = Touch_ToGridCol(x);
+                AttackResult res = processAttack(&playerGrid, playerShips, row, col);
+                if (res == ATTACK_INVALID) break;
+                if (res == ATTACK_HIT || res == ATTACK_SUNK)
+                {
+                    Display_ShowHitResult(2);
+                    if (res == ATTACK_SUNK && GameDriver_CheckWin(playerShips))
+                    {
+                        currentGameState = STATE_GAME_OVER;
+                        Display_RenderGameOver(2);
+                    }
+                }
+                else
+                {
+                    nextTransitionTarget = STATE_P1_ATTACK;
+                    currentGameState = STATE_TRANSITION_SCREEN;
+                    Display_RenderTransitionScreen("MISS! Pass to P1");
                 }
             }
             break;
@@ -275,10 +360,23 @@ void GameDriver_HandleButtonTick(void)
     {
         if (buttonHeldTicks > 0 && buttonHeldTicks < BUTTON_HOLD_TICKS_3S)
         {
-            if (currentGameState == STATE_P1_PLACEMENT)
+            if (currentGameState == STATE_P1_PLACEMENT ||
+                currentGameState == STATE_P2_PLACEMENT)
             {
                 GameDriver_RotateSelectedShip();
                 Display_UpdatePlacementPreview();
+            }
+            else if (currentGameState == STATE_TRANSITION_SCREEN)
+            {
+                if (nextTransitionTarget == STATE_P2_PLACEMENT)
+                {
+                    beginPlayerPlacement(2);
+                }
+                else
+                {
+                    currentGameState = nextTransitionTarget;
+                    Display_RenderStateForTarget(nextTransitionTarget);
+                }
             }
             else if (currentGameState == STATE_GAME_OVER)
             {
@@ -341,6 +439,7 @@ void GameDriver_ResetGame(void)
     g_shipsPlaced = 0;
     g_placingShipIndex = 0;
     g_isMultiplayer = 0;
+    nextTransitionTarget = STATE_HOME_SCREEN;
     buttonHeldTicks = 0;
 
     aiTargetHead = 0;
@@ -404,7 +503,8 @@ void GameDriver_RotateSelectedShip(void)
 {
     Ship temp = g_placingShip;
     temp.orientation = (temp.orientation == ORIENTATION_HORIZONTAL) ? ORIENTATION_VERTICAL : ORIENTATION_HORIZONTAL;
-    if (GameDriver_IsPlacementValid(&playerGrid, &temp))
+    Grid *activeGrid = (currentGameState == STATE_P2_PLACEMENT) ? &aiGrid : &playerGrid;
+    if (GameDriver_IsPlacementValid(activeGrid, &temp))
     {
         g_placingShip.orientation = temp.orientation;
     }
