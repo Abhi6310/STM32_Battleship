@@ -40,9 +40,18 @@
 #define HINT_TEXT_Y 228
 
 #define STATS_TITLE_X 80
-#define STATS_TITLE_Y 130
+#define STATS_TITLE_Y 8
 #define STATS_HINT_X 24
-#define STATS_HINT_Y 210
+#define STATS_HINT_Y 296
+#define STATS_WIN_LABEL_X 22
+#define STATS_WIN_P1_Y 36
+#define STATS_WIN_P2_Y 54
+#define STATS_HEATMAP_CELL 22
+#define STATS_HEATMAP_ORIGIN_X 43
+#define STATS_HEATMAP_ORIGIN_Y 78
+#define HEATMAP_LOW_MAX 1
+#define HEATMAP_MID_MAX 3
+#define STATS_RESET_Y 240
 
 #define ATTACK_HEADER_X 20
 #define ATTACK_HEADER_Y 12
@@ -69,7 +78,7 @@ void Display_RenderGrid(Grid *grid, uint16_t originX, uint16_t originY, uint8_t 
 void Display_RenderHomeScreen(void);
 void Display_RenderPlacementScreen(uint8_t player);
 void Display_UpdatePlacementPreview(void);
-void Display_RenderStatsPlaceholder(void);
+void Display_RenderStatsScreen(void);
 void Display_RenderAttackScreen(uint8_t player);
 void Display_ShowHitResult(uint8_t player);
 void Display_ShowMissResult(uint8_t player);

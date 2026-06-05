@@ -8,8 +8,13 @@
 #define AI_QUEUE_MAX 16
 #define AI_RESULT_DISPLAY_TICKS 100
 
+#define STATS_FLASH_SECTOR FLASH_SECTOR_11
+#define STATS_FLASH_ADDR ((uint32_t)0x081C0000)
+#define STATS_MAGIC ((uint32_t)0xDEADBEEF)
+
 TIM_HandleTypeDef htim6;
 static RNG_HandleTypeDef rngHandle;
+static GameStats g_stats;
 
 static const Ship kShipTemplate[NUM_SHIPS] = {
     { SHIP_DESTROYER, DESTROYER_LENGTH, 0, 0, ORIENTATION_HORIZONTAL, 0, 1 },
@@ -124,7 +129,16 @@ void GameDriver_HandleTouch(uint16_t x, uint16_t y)
             else if (pointInRect(x, y, HOME_BTN_X, BTN_STATS_Y, HOME_BTN_W, HOME_BTN_H))
             {
                 currentGameState = STATE_STATS_SCREEN;
-                Display_RenderStatsPlaceholder();
+                Display_RenderStatsScreen();
+            }
+            break;
+
+        case STATE_STATS_SCREEN:
+            if (pointInRect(x, y, BTN_RESET_X, STATS_RESET_Y, BTN_W, BTN_H))
+            {
+                memset(&g_stats, 0, sizeof(g_stats));
+                Flash_SaveStats();
+                Display_RenderStatsScreen();
             }
             break;
 
@@ -230,6 +244,8 @@ void GameDriver_HandleTouch(uint16_t x, uint16_t y)
                     Display_ShowHitResult(1);
                     if (res == ATTACK_SUNK && GameDriver_CheckWin(aiShips))
                     {
+                        g_stats.playerWins++;
+                        Flash_SaveStats();
                         currentGameState = STATE_GAME_OVER;
                         Display_RenderGameOver(1);
                     }
@@ -263,6 +279,8 @@ void GameDriver_HandleTouch(uint16_t x, uint16_t y)
                     Display_ShowHitResult(2);
                     if (res == ATTACK_SUNK && GameDriver_CheckWin(playerShips))
                     {
+                        g_stats.aiWins++;
+                        Flash_SaveStats();
                         currentGameState = STATE_GAME_OVER;
                         Display_RenderGameOver(2);
                     }
@@ -316,6 +334,51 @@ void RNG_Init(void)
     __HAL_RCC_RNG_CLK_ENABLE();
     rngHandle.Instance = RNG;
     HAL_RNG_Init(&rngHandle);
+}
+
+GameStats* GameDriver_GetStats(void)
+{
+    return &g_stats;
+}
+
+void Flash_LoadStats(void)
+{
+    const GameStats *flashPtr = (const GameStats *)STATS_FLASH_ADDR;
+    if (flashPtr->validationMagic == STATS_MAGIC)
+    {
+        g_stats = *flashPtr;
+    }
+    else
+    {
+        memset(&g_stats, 0, sizeof(g_stats));
+    }
+}
+
+void Flash_SaveStats(void)
+{
+    g_stats.validationMagic = STATS_MAGIC;
+
+    HAL_FLASH_Unlock();
+
+    FLASH_EraseInitTypeDef eraseInit;
+    eraseInit.TypeErase = FLASH_TYPEERASE_SECTORS;
+    eraseInit.Banks = FLASH_BANK_1;
+    eraseInit.Sector = STATS_FLASH_SECTOR;
+    eraseInit.NbSectors = 1;
+    eraseInit.VoltageRange = FLASH_VOLTAGE_RANGE_3;
+
+    uint32_t sectorError = 0;
+    HAL_FLASHEx_Erase(&eraseInit, &sectorError);
+
+    const uint32_t *src = (const uint32_t *)&g_stats;
+    uint32_t addr = STATS_FLASH_ADDR;
+    for (uint32_t i = 0; i < sizeof(GameStats) / sizeof(uint32_t); i++)
+    {
+        HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, addr, src[i]);
+        addr += sizeof(uint32_t);
+    }
+
+    HAL_FLASH_Lock();
 }
 
 void AI_PlaceShips(Grid *grid, Ship ships[])
@@ -383,6 +446,11 @@ void GameDriver_HandleButtonTick(void)
                 GameDriver_ResetGame();
                 Display_RenderHomeScreen();
             }
+            else if (currentGameState == STATE_STATS_SCREEN)
+            {
+                currentGameState = STATE_HOME_SCREEN;
+                Display_RenderHomeScreen();
+            }
         }
         buttonHeldTicks = 0;
     }
@@ -424,6 +492,8 @@ void GameDriver_HandleTimerTick(void)
 
     if (GameDriver_CheckWin(playerShips))
     {
+        g_stats.aiWins++;
+        Flash_SaveStats();
         currentGameState = STATE_GAME_OVER;
         Display_RenderGameOver(0);
     }
@@ -533,6 +603,7 @@ static AttackResult processAttack(Grid *grid, Ship ships[], uint8_t row, uint8_t
 
         grid->cells[row][col] = CELL_HIT;
         ships[i].hitCount++;
+        g_stats.heatmap[row][col]++;
 
         if (ships[i].hitCount >= ships[i].length)
         {

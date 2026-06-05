@@ -26,6 +26,7 @@ void ApplicationInit(void)
 	InitializeLCDTouch();
 	touchData.orientation = TOUCH_ORIENTATION;
 	GameDriver_Init();
+	Flash_LoadStats();
 	RNG_Init();
 	Button_Init();
 	Timer_Init(TIMER_PSC_10MS, TIMER_ARR_10MS);

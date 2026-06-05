@@ -149,11 +149,86 @@ void Display_UpdatePlacementPreview(void)
 	}
 }
 
-void Display_RenderStatsPlaceholder(void)
+#define DEC_DIGITS_U32 10
+
+static void u32ToStr(uint32_t num, char *buf)
 {
-	LCD_Clear(LCD_COLOR_ORANGE);
-	Display_DrawStringLarge(STATS_TITLE_X, STATS_TITLE_Y, "STATS", LCD_COLOR_BLACK);
-	Display_DrawString(STATS_HINT_X, STATS_HINT_Y, "Hold button 3s for home", LCD_COLOR_BLACK);
+    char tmp[DEC_DIGITS_U32];
+    uint8_t n = 0;
+    if (num == 0)
+    {
+        buf[0] = '0';
+        buf[1] = '\0';
+        return;
+    }
+    while (num > 0 && n < DEC_DIGITS_U32)
+    {
+        tmp[n++] = (char)('0' + (num % 10));
+        num /= 10;
+    }
+    for (uint8_t i = 0; i < n; i++)
+    {
+        buf[i] = tmp[n - 1 - i];
+    }
+    buf[n] = '\0';
+}
+
+static uint32_t heatmapColor(uint32_t hits)
+{
+    if (hits == 0) return LCD_COLOR_GRAY;
+    if (hits <= HEATMAP_LOW_MAX) return LCD_COLOR_BLUE;
+    if (hits <= HEATMAP_MID_MAX) return LCD_COLOR_YELLOW;
+    return LCD_COLOR_RED;
+}
+
+static void drawWinLine(uint16_t y, const char *label, uint32_t value)
+{
+    char numBuf[11];
+    char line[24];
+    u32ToStr(value, numBuf);
+
+    uint8_t i = 0;
+    while (label[i] != '\0' && i < (uint8_t)(sizeof(line) - 1))
+    {
+        line[i] = label[i];
+        i++;
+    }
+    uint8_t j = 0;
+    while (numBuf[j] != '\0' && i < (uint8_t)(sizeof(line) - 1))
+    {
+        line[i++] = numBuf[j++];
+    }
+    line[i] = '\0';
+
+    Display_DrawString(STATS_WIN_LABEL_X, y, line, LCD_COLOR_WHITE);
+}
+
+void Display_RenderStatsScreen(void)
+{
+    GameStats *stats = GameDriver_GetStats();
+
+    LCD_Clear(LCD_COLOR_BLACK);
+    Display_DrawStringLarge(STATS_TITLE_X, STATS_TITLE_Y, "STATS", LCD_COLOR_WHITE);
+
+    drawWinLine(STATS_WIN_P1_Y, "P1 WINS: ", stats->playerWins);
+    drawWinLine(STATS_WIN_P2_Y, "P2/AI: ", stats->aiWins);
+
+    for (uint8_t row = 0; row < GRID_SIZE; row++)
+    {
+        for (uint8_t col = 0; col < GRID_SIZE; col++)
+        {
+            uint16_t px = STATS_HEATMAP_ORIGIN_X + col * STATS_HEATMAP_CELL;
+            uint16_t py = STATS_HEATMAP_ORIGIN_Y + row * STATS_HEATMAP_CELL;
+            Display_FillRect(px + 1, py + 1, STATS_HEATMAP_CELL - 2, STATS_HEATMAP_CELL - 2,
+                             heatmapColor(stats->heatmap[row][col]));
+        }
+    }
+
+    Display_FillRect(BTN_RESET_X, STATS_RESET_Y, BTN_W, BTN_H, LCD_COLOR_DARKRED);
+    Display_DrawString(BTN_RESET_X + (BTN_W - (uint16_t)strlen("RESET") * Font.Width) / 2,
+                       STATS_RESET_Y + BTN_TEXT_Y_OFFSET, "RESET", LCD_COLOR_WHITE);
+
+    Display_DrawString(STATS_HINT_X, STATS_HINT_Y, "Press button for home", LCD_COLOR_WHITE);
 }
 
 static void renderShipStatusBar(uint8_t player)

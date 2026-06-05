@@ -48,6 +48,13 @@ typedef enum {
     ATTACK_INVALID
 } AttackResult;
 
+typedef struct {
+    uint32_t playerWins;
+    uint32_t aiWins;
+    uint32_t heatmap[GRID_SIZE][GRID_SIZE];
+    uint32_t validationMagic;
+} GameStats;
+
 uint8_t Touch_IsInGrid(uint16_t px, uint16_t py);
 uint8_t Touch_ToGridRow(uint16_t py);
 uint8_t Touch_ToGridCol(uint16_t px);
@@ -78,5 +85,9 @@ uint8_t GameDriver_GetPlacingShipIndex(void);
 uint8_t GameDriver_IsPlacementValid(Grid *grid, Ship *ship);
 void GameDriver_RotateSelectedShip(void);
 void GameDriver_GetShipCell(const Ship *ship, uint8_t i, uint8_t *row, uint8_t *col);
+
+GameStats* GameDriver_GetStats(void);
+void Flash_LoadStats(void);
+void Flash_SaveStats(void);
 
 #endif /* INC_GAMEDRIVER_H_ */
