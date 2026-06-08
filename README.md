@@ -9,7 +9,7 @@ Bare-metal Battleship on the STM32F429i: no RTOS, no dynamic allocation in the g
 - **MCU:** STM32F429ZIT6 (Cortex-M4F, 168 MHz)
 - **Display:** 240×320 ILI9341 TFT via LTDC + SDRAM framebuffer
 - **Touch:** STMPE811 resistive controller, polled
-- **Input:** onboard PA0 push button
+- **Input:** onboard PA0 blue push button
 - **Persistence:** internal Flash sector 11
 
 ---
@@ -44,9 +44,9 @@ Open `firmware/` as an STM32CubeIDE project (target part STM32F429ZIT6). Build i
 
 ## Demo
 
-1. Home: tap `1P`, `2P`, or `Stats`. Hold PA0 for 3 seconds from any state to return here.
-2. Placement: tap a cell to select a start, short-press PA0 to rotate, tap on-screen `Place` to commit. 3 ships on a 7×7 grid.
-3. Attack: tap cells on the opponent grid. Hits keep your turn, misses pass it (about a 1-second result delay so the move is readable). First to sink all 3 ships wins.
+1. Home: tap `SINGLEPLAYER`, `MULTIPLAYER`, or `STATS`. Hold blue button for 3 seconds from any state to return here.
+2. Placement: tap a cell to select a start, short-press blue button to rotate, tap on-screen `PLACE` to commit. 3 ships on a 7×7 grid. The next ship's ghost previews automatically after each commit.
+3. Attack: tap cells on the opponent grid. Hits keep your turn (filled red circle in the cell), misses pass it (blue square, ~2-second result panel so the move is readable). First to sink all 3 ships wins.
 4. 2-player: same flow with a full-screen transition between turns so neither player sees the other's board. Stats screen shows persisted win counts and a hit-density heatmap.
 
 ---

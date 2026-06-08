@@ -7,6 +7,7 @@
 #define TOUCH_Y_INVERT_MAX 295
 #define TIMER_PSC_10MS 839
 #define TIMER_ARR_10MS 999
+#define TOUCH_RELEASE_CONFIRM 100
 
 static STMPE811_TouchData touchData;
 volatile uint8_t timerFlag = 0;
@@ -35,6 +36,8 @@ void ApplicationInit(void)
 
 void ApplicationRun(void)
 {
+	uint16_t releaseStreak = TOUCH_RELEASE_CONFIRM;
+
 	while (1)
 	{
 		if (timerFlag)
@@ -44,11 +47,19 @@ void ApplicationRun(void)
 			GameDriver_HandleTimerTick();
 		}
 
-		if (returnTouchStateAndLocation(&touchData) == TOUCH_PRESSED &&
-			touchData.last_pressed == TOUCH_RELEASED)
+		STMPE811_State_t state = returnTouchStateAndLocation(&touchData);
+		if (state == TOUCH_RELEASED)
 		{
-			touchData.y = TOUCH_Y_INVERT_MAX - touchData.y;
-			GameDriver_HandleTouch(touchData.x, touchData.y);
+			if (releaseStreak < TOUCH_RELEASE_CONFIRM) releaseStreak++;
+		}
+		else
+		{
+			if (releaseStreak >= TOUCH_RELEASE_CONFIRM)
+			{
+				touchData.y = TOUCH_Y_INVERT_MAX - touchData.y;
+				GameDriver_HandleTouch(touchData.x, touchData.y);
+			}
+			releaseStreak = 0;
 		}
 	}
 }

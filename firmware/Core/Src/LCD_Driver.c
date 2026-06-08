@@ -231,13 +231,8 @@ static void FillBuffer(uint32_t Destination, uint32_t Xsize, uint32_t Ysize, uin
  */
 void LCD_Draw_Pixel(uint16_t x, uint16_t y, uint32_t color)
 {
-	if(x>LCD_PIXEL_WIDTH_X || y>LCD_PIXEL_HEIGHT_Y){
-		while(1);
-		/* You did something wrong. You cant write to the pixel.*/
-	} else {
-		/*Use 888 color mode, 24 bit, so write address with * 3 */
-		*(volatile uint32_t *)(hltdc.LayerCfg[0].FBStartAdress + (3 * (y * LCD_PIXEL_WIDTH_X + x))) = color;
-	}
+	if (x >= LCD_PIXEL_WIDTH_X || y >= LCD_PIXEL_HEIGHT_Y) return;
+	*(volatile uint32_t *)(hltdc.LayerCfg[0].FBStartAdress + (3 * (y * LCD_PIXEL_WIDTH_X + x))) = color;
 }
 
 /*
