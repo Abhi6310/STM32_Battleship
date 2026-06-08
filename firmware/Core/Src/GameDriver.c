@@ -6,7 +6,7 @@
 #define PLACING_ORIENTATION_DEFAULT ORIENTATION_HORIZONTAL
 #define MAX_PLACEMENT_ATTEMPTS 100
 #define AI_QUEUE_MAX 16
-#define AI_RESULT_DISPLAY_TICKS 100
+#define AI_RESULT_DISPLAY_TICKS 200
 
 #define STATS_FLASH_SECTOR FLASH_SECTOR_11
 #define STATS_FLASH_ADDR ((uint32_t)0x081C0000)
@@ -55,6 +55,8 @@ static inline void shipCellAt(const Ship *s, uint8_t i, uint8_t *row, uint8_t *c
     *row = s->startRow + ((s->orientation == ORIENTATION_VERTICAL) ? i : 0);
     *col = s->startCol + ((s->orientation == ORIENTATION_HORIZONTAL) ? i : 0);
 }
+
+static AttackResult processAttack(Grid *grid, Ship ships[], uint8_t row, uint8_t col);
 
 void GameDriver_GetShipCell(const Ship *ship, uint8_t i, uint8_t *row, uint8_t *col)
 {
@@ -149,7 +151,7 @@ void GameDriver_HandleTouch(uint16_t x, uint16_t y)
                 g_placingShip.startCol = Touch_ToGridCol(x);
                 Display_UpdatePlacementPreview();
             }
-            else if (pointInRect(x, y, BTN_PLACE_X, BTN_PLACE_Y, BTN_W, BTN_H))
+            else if (pointInRect(x, y, BTN_PLACE_X, BTN_PLACE_Y, BTN_PLACE_W, BTN_PLACE_H))
             {
                 if (GameDriver_IsPlacementValid(&playerGrid, &g_placingShip))
                 {
@@ -170,7 +172,7 @@ void GameDriver_HandleTouch(uint16_t x, uint16_t y)
                         {
                             nextTransitionTarget = STATE_P2_PLACEMENT;
                             currentGameState = STATE_TRANSITION_SCREEN;
-                            Display_RenderTransitionScreen("Pass to P2");
+                            Display_RenderTransitionScreen("PASS TO P2");
                         }
                         else
                         {
@@ -187,6 +189,7 @@ void GameDriver_HandleTouch(uint16_t x, uint16_t y)
                         g_placingShip.startRow = 0;
                         g_placingShip.startCol = 0;
                         Display_RenderPlacementScreen(1);
+                        Display_UpdatePlacementPreview();
                     }
                 }
             }
@@ -199,7 +202,7 @@ void GameDriver_HandleTouch(uint16_t x, uint16_t y)
                 g_placingShip.startCol = Touch_ToGridCol(x);
                 Display_UpdatePlacementPreview();
             }
-            else if (pointInRect(x, y, BTN_PLACE_X, BTN_PLACE_Y, BTN_W, BTN_H))
+            else if (pointInRect(x, y, BTN_PLACE_X, BTN_PLACE_Y, BTN_PLACE_W, BTN_PLACE_H))
             {
                 if (GameDriver_IsPlacementValid(&aiGrid, &g_placingShip))
                 {
@@ -218,7 +221,7 @@ void GameDriver_HandleTouch(uint16_t x, uint16_t y)
                     {
                         nextTransitionTarget = STATE_P1_ATTACK;
                         currentGameState = STATE_TRANSITION_SCREEN;
-                        Display_RenderTransitionScreen("Pass back to P1");
+                        Display_RenderTransitionScreen("PASS BACK P1");
                     }
                     else
                     {
@@ -227,6 +230,7 @@ void GameDriver_HandleTouch(uint16_t x, uint16_t y)
                         g_placingShip.startRow = 0;
                         g_placingShip.startCol = 0;
                         Display_RenderPlacementScreen(2);
+                        Display_UpdatePlacementPreview();
                     }
                 }
             }
@@ -256,7 +260,7 @@ void GameDriver_HandleTouch(uint16_t x, uint16_t y)
                     {
                         nextTransitionTarget = STATE_P2_ATTACK;
                         currentGameState = STATE_TRANSITION_SCREEN;
-                        Display_RenderTransitionScreen("MISS! Pass to P2");
+                        Display_RenderTransitionScreen("MISS TO P2");
                     }
                     else
                     {
@@ -289,7 +293,7 @@ void GameDriver_HandleTouch(uint16_t x, uint16_t y)
                 {
                     nextTransitionTarget = STATE_P1_ATTACK;
                     currentGameState = STATE_TRANSITION_SCREEN;
-                    Display_RenderTransitionScreen("MISS! Pass to P1");
+                    Display_RenderTransitionScreen("MISS TO P1");
                 }
             }
             break;
@@ -339,6 +343,11 @@ void RNG_Init(void)
 GameStats* GameDriver_GetStats(void)
 {
     return &g_stats;
+}
+
+uint8_t GameDriver_IsMultiplayer(void)
+{
+    return g_isMultiplayer;
 }
 
 void Flash_LoadStats(void)

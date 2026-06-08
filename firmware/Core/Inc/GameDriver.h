@@ -87,6 +87,7 @@ void GameDriver_RotateSelectedShip(void);
 void GameDriver_GetShipCell(const Ship *ship, uint8_t i, uint8_t *row, uint8_t *col);
 
 GameStats* GameDriver_GetStats(void);
+uint8_t GameDriver_IsMultiplayer(void);
 void Flash_LoadStats(void);
 void Flash_SaveStats(void);
 

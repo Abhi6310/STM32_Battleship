@@ -11,6 +11,17 @@
 #define LCD_WIDTH 240
 #define LCD_HEIGHT 320
 
+#define UI_BG 0x1E1E24
+#define UI_INACTIVE 0x43434D
+#define UI_GRID_LINE 0x2A2A30
+#define UI_ACCENT 0xE5A93A
+#define UI_HIT 0xD64045
+#define UI_SUNK 0x5C1E22
+#define UI_MISS 0x467599
+#define UI_SHIP 0x6E6E78
+#define UI_TEXT 0xE8E8EA
+#define UI_TEXT_DIM 0x8F8F95
+
 #define GRID_ORIGIN_X 22
 #define GRID_ORIGIN_Y 40
 #define GRID_CELL_SIZE 28
@@ -27,9 +38,11 @@
 #define BTN_TEXT_Y_OFFSET 14
 #define BTN_W 100
 #define BTN_H 40
-#define BTN_PLACE_X 70
-#define BTN_PLACE_Y 260
-#define BTN_RESET_X 80
+#define BTN_PLACE_W 80
+#define BTN_PLACE_H 28
+#define BTN_PLACE_X 80
+#define BTN_PLACE_Y 270
+#define BTN_RESET_X 70
 #define BTN_RESET_Y 260
 
 #define PLACEMENT_HEADER_X 20
@@ -60,14 +73,15 @@
 #define RESULT_OVERLAY_X 80
 #define RESULT_OVERLAY_Y 260
 #define GAME_OVER_TITLE_X 40
-#define GAME_OVER_TITLE_Y 130
+#define GAME_OVER_TITLE_Y 80
 #define GAME_OVER_HINT_X 24
-#define GAME_OVER_HINT_Y 200
+#define GAME_OVER_HINT_Y 180
 
 #define TRANSITION_TITLE_X 40
-#define TRANSITION_TITLE_Y 130
+#define TRANSITION_TITLE_Y 60
 #define TRANSITION_HINT_X 24
-#define TRANSITION_HINT_Y 200
+#define TRANSITION_HINT_Y 100
+#define STATS_LINE_Y 45
 
 void Display_FillRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint32_t color);
 void Display_DrawHLine(uint16_t x, uint16_t y, uint16_t len, uint32_t color);
