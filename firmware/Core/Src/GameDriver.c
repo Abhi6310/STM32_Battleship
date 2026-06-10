@@ -43,9 +43,7 @@ static uint8_t aiAttackFired;
 static uint16_t aiResultDelay;
 static AttackResult aiLastResult;
 
-static inline uint8_t pointInRect(uint16_t x, uint16_t y,
-                                  uint16_t rx, uint16_t ry,
-                                  uint16_t rw, uint16_t rh)
+static inline uint8_t pointInRect(uint16_t x, uint16_t y, uint16_t rx, uint16_t ry, uint16_t rw, uint16_t rh)
 {
     return (x >= rx) && (x < rx + rw) && (y >= ry) && (y < ry + rh);
 }

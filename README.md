@@ -1,6 +1,28 @@
 # STM32 Battleship
 
-Bare-metal Battleship on the STM32F429i: no RTOS, no dynamic allocation in the game stack, all game logic running directly on a Cortex-M4F at 168 MHz. Built a full touchscreen game with a hunt-and-target AI opponent, two-player pass-and-play with hardware-enforced turn privacy, and a Flash-persisted attack heatmap and leaderboard. Display primitives, game state machine, AI, and Flash persistence written from scratch on top of the given HAL and LCD low-level drivers. Zero compiler warnings under `-Wall -Wextra`.
+Battleship running bare-metal on an STM32F429i, with no operating system and no heap allocation in the game stack, so the game logic runs directly on the Cortex-M4F at 168 MHz. A single player faces a hunt-and-target AI, while two players can share one board in a pass-and-play mode that hides each grid from the opponent on every handoff. Win counts and a hit-density heatmap are written to Flash and survive a power cycle. I built the display primitives, the state machine, the AI, and the Flash persistence over the provided HAL and LCD drivers, and the firmware builds clean with warnings treated as errors (`-Wall -Wextra -Werror`).
+
+<table>
+<tr>
+<td width="300" valign="top">
+
+<video src="https://github.com/Abhi6310/STM32_Battleship/raw/main/.github/assets/demo_video.mp4" width="280" controls></video>
+
+</td>
+<td valign="top">
+
+**Demo on hardware**
+
+- Touchscreen ship placement with rotate and preview
+- Hunt-and-target AI on a 7×7 grid
+- Hits keep your turn, misses pass it
+- Flash-persisted win counts and a hit-density heatmap
+
+If the player does not load, [open the clip directly](.github/assets/demo_video.mp4).
+
+</td>
+</tr>
+</table>
 
 ---
 
@@ -16,38 +38,54 @@ Bare-metal Battleship on the STM32F429i: no RTOS, no dynamic allocation in the g
 
 ## Design decisions
 
-- **No `HAL_Delay` in the game loop.** Blocking delays stall rendering. Timing uses a TIM6 10 ms flag set in the ISR and read in the main loop; the ISR only sets a `volatile` flag. The remaining `HAL_Delay` calls live in the given init drivers and the 5-second splash in `main.c`, both outside the steady-state loop.
-- **Flash writes once per game.** Erasing a Flash sector is blocking and takes roughly 2 seconds at this clock speed. Heatmap and win counters accumulate in RAM during play; the game-over handler erases and rewrites sector 11 once. Mid-game writes would freeze the UI.
-- **Touch uses polling, not interrupts.** The STMPE811 interrupt line is unreliable on this board; polling every main-loop iteration is tight enough for a turn-based game and eliminates the ISR complexity entirely.
-- **Hunt-and-target AI.** The AI opponent shoots randomly until it scores a hit, then queues adjacent cells for targeted follow-up. The queue filters already-shot cells so the AI never wastes a turn.
-- **Two-player turn privacy.** Pass-and-play physically hands the board between players. A full-screen transition state (`STATE_TRANSITION_SCREEN`) blocks the display between turns. The next player presses the hardware button to reveal their view. Used in four places in the 2P flow to prevent each player from seeing the opponent's grid on handoff.
+- **No `HAL_Delay` in the game loop.** A blocking delay would stall rendering, so timing runs off a TIM6 interrupt that fires every 10 ms and only sets a `volatile` flag the main loop reads to pace itself.
+- **Flash writes once per game.** Erasing a sector blocks the CPU for about a second (datasheet average), too long to hide inside a turn, so the heatmap and win counts accumulate in RAM and flush to sector 11 once, when the game ends. On boot the sector is validated against a magic number, and a blank or corrupt Flash falls back to zeroed stats rather than reading uninitialized data.
+- **Touch uses polling, not interrupts.** The main loop reads the controller every pass, which stays deterministic and is more than fast enough for a turn-based game, so no touch ISR is needed. A new press registers only after the panel has read as released for a stretch of polls, so one tap never counts twice and a held finger never repeats.
+- **Hunt-and-target AI.** The AI fires at random until it hits, then works outward through the neighboring cells to finish the ship, skipping any square it has already tried.
+- **Two-player turn privacy.** On every handoff a full-screen transition state (`STATE_TRANSITION_SCREEN`) covers the display and waits for the hardware button, so neither player ever sees the other's grid.
 
 ---
 
 ## Architecture
 
-Strict three-module layering: ApplicationCode handles init and the main loop; GameDriver owns all state, AI logic, and Flash; DisplayDriver is the only translation unit that includes `LCD_Driver.h`. The hard boundary on display access means any display swap touches one file. Module-internal state stays `static`; cross-module access goes through header-declared getters. The two true globals (the TIM6 handle and the volatile timer flag) exist because the ISR has to reach them.
+Three modules. ApplicationCode runs init and the main loop, GameDriver owns the state machine, AI, and Flash, and DisplayDriver handles all gameplay rendering. ApplicationCode brings the LCD up once at startup, and after that every pixel the game draws goes through DisplayDriver, so GameDriver never touches the display layer directly.
 
 ```
 ApplicationCode.c   init, ISR, main loop
 GameDriver.c        state machine, game logic, AI, Flash
-DisplayDriver.c     rendering (the only file that includes LCD_Driver.h)
+DisplayDriver.c     all gameplay rendering
+```
+
+The game is one explicit state machine, with `STATE_TRANSITION_SCREEN` gating each turn handoff.
+
+```mermaid
+stateDiagram-v2
+    [*] --> HOME_SCREEN
+    HOME_SCREEN --> P1_PLACEMENT: start
+    HOME_SCREEN --> STATS_SCREEN
+    STATS_SCREEN --> HOME_SCREEN
+    P1_PLACEMENT --> AI_SETUP: 1P
+    AI_SETUP --> P1_ATTACK
+    P1_PLACEMENT --> TRANSITION_SCREEN: 2P
+    TRANSITION_SCREEN --> P2_PLACEMENT
+    P2_PLACEMENT --> TRANSITION_SCREEN
+    TRANSITION_SCREEN --> P1_ATTACK
+    TRANSITION_SCREEN --> P2_ATTACK
+    P1_ATTACK --> AI_ATTACK: 1P miss
+    AI_ATTACK --> P1_ATTACK: miss
+    P1_ATTACK --> TRANSITION_SCREEN: 2P
+    P2_ATTACK --> TRANSITION_SCREEN
+    P1_ATTACK --> GAME_OVER: win
+    P2_ATTACK --> GAME_OVER: win
+    AI_ATTACK --> GAME_OVER: AI wins
+    GAME_OVER --> HOME_SCREEN
 ```
 
 ---
 
 ## Build and flash
 
-Open `firmware/` as an STM32CubeIDE project (target part STM32F429ZIT6). Build in Debug config, then Run → Debug to flash over ST-Link. On boot the splash runs for 5 seconds, then the home screen renders.
-
----
-
-## Demo
-
-1. Home: tap `SINGLEPLAYER`, `MULTIPLAYER`, or `STATS`. Hold blue button for 3 seconds from any state to return here.
-2. Placement: tap a cell to select a start, short-press blue button to rotate, tap on-screen `PLACE` to commit. 3 ships on a 7×7 grid. The next ship's ghost previews automatically after each commit.
-3. Attack: tap cells on the opponent grid. Hits keep your turn (filled red circle in the cell), misses pass it (blue square, ~2-second result panel so the move is readable). First to sink all 3 ships wins.
-4. 2-player: same flow with a full-screen transition between turns so neither player sees the other's board. Stats screen shows persisted win counts and a hit-density heatmap.
+Open `firmware/` as an STM32CubeIDE project (target part STM32F429ZIT6). Build in Debug config, then Run → Debug to flash over ST-Link. On boot the home screen renders immediately after hardware init.
 
 ---
 
