@@ -23,7 +23,7 @@ Single-player runs a hunt-and-target AI. Two-player is pass-and-play, with a ful
 
 **Rules**
 
-- 7×7 board. Fleet of 3: destroyer (2), submarine (3), battleship (4).
+- 7×7 board. 3 ships: destroyer (2), submarine (3), battleship (4)
 
 **Demo on hardware**
 
